@@ -1,0 +1,76 @@
+from sqlalchemy import Boolean, Float, Integer, String, Text, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Researcher(Base):
+    __tablename__ = "researchers"
+    openalex_id: Mapped[str] = mapped_column(String, primary_key=True)
+    display_name: Mapped[str] = mapped_column(String)
+    orcid: Mapped[str | None] = mapped_column(String, nullable=True)
+    h_index: Mapped[int] = mapped_column(Integer, default=0)
+    works_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Phase 2 (公式名簿) で埋める列。Phase 1 では NULL のまま
+    name_ja: Mapped[str | None] = mapped_column(String, nullable=True)
+    department: Mapped[str | None] = mapped_column(String, nullable=True)
+    position: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_official_roster: Mapped[bool] = mapped_column(Boolean, default=False)
+    raw_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
+class Work(Base):
+    __tablename__ = "works"
+    openalex_id: Mapped[str] = mapped_column(String, primary_key=True)
+    doi: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str] = mapped_column(Text)
+    publication_date: Mapped[str] = mapped_column(String, index=True)
+    venue: Mapped[str | None] = mapped_column(String, nullable=True)
+    type: Mapped[str | None] = mapped_column(String, nullable=True)
+    cited_by_count: Mapped[int] = mapped_column(Integer, default=0)
+    fwci: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cnp_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_top1pct: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_top10pct: Mapped[bool] = mapped_column(Boolean, default=False)
+    topic: Mapped[str | None] = mapped_column(String, nullable=True)
+    subfield: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_oa: Mapped[bool] = mapped_column(Boolean, default=False)
+    raw_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
+class Authorship(Base):
+    __tablename__ = "authorships"
+    work_id: Mapped[str] = mapped_column(String, primary_key=True)
+    author_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    author_position: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_corresponding: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ResearcherMetrics(Base):
+    __tablename__ = "researcher_metrics"
+    researcher_id: Mapped[str] = mapped_column(String, primary_key=True)
+    works_count_3y: Mapped[int] = mapped_column(Integer, default=0)
+    total_citations: Mapped[int] = mapped_column(Integer, default=0)
+    fwci_mean: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fwci_median: Mapped[float | None] = mapped_column(Float, nullable=True)
+    top10pct_count: Mapped[int] = mapped_column(Integer, default=0)
+    first_author_count: Mapped[int] = mapped_column(Integer, default=0)
+    corresponding_count: Mapped[int] = mapped_column(Integer, default=0)
+    computed_at: Mapped[str] = mapped_column(String)
+
+
+class SyncState(Base):
+    __tablename__ = "sync_state"
+    source: Mapped[str] = mapped_column(String, primary_key=True)
+    cursor: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_synced_at: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+def get_engine(path: str = "db/researchers.db"):
+    engine = create_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(engine)
+    return engine
