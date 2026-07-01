@@ -40,8 +40,7 @@ researchers/
 │   ├── models.py        # SQLAlchemy モデル
 │   └── researchers.db   # SQLite（gitignore）
 ├── scripts/
-│   ├── sync.py          # CLI: full / incremental sync
-│   └── metrics.py       # 研究者別集計の再計算
+│   └── sync.py          # CLI: full / incremental sync（metrics再計算込み）
 ├── tests/
 └── docs/
 ```
@@ -51,7 +50,7 @@ researchers/
 - **researchers**: `openalex_id` (PK), `display_name`, `name_ja` (Phase 2), `orcid`, `department` / `position` (Phase 2), `h_index`, `works_count`, `is_official_roster` (Phase 2 フラグ), `raw_json`
 - **works**: `openalex_id` (PK), `doi`, `title`, `publication_date`, `venue`, `type`, `cited_by_count`, `fwci`, `cnp_value` / `is_top1pct` / `is_top10pct`, `topic` / `subfield`, `is_oa`, `raw_json`
 - **authorships**: `work_id` + `researcher_id` (複合PK), `author_position`, `is_corresponding`
-- **researcher_metrics**（sync 後に再計算する集計テーブル）: 3年 works 数、総被引用数、FWCI 平均/中央値、top10% 論文割合、筆頭/責任著者数
+- **researcher_metrics**（sync 後に再計算する集計テーブル）: 3年 works 数、総被引用数、FWCI 平均/中央値、top10% 論文数（割合は works 数との比で導出）、筆頭/責任著者数
 - **sync_state**: ソース別の最終同期時刻・カーソル
 
 `raw_json` を必ず保持し、スキーマ変更時に API 再取得なしで再パースできるようにする。
@@ -67,7 +66,7 @@ researchers/
 ## エラー処理
 
 - 429/5xx は指数バックオフ（httpx + リトライ）。mailto=ai.labo.ocu@gmail.com を必ず付与
-- sync は cursor を sync_state に永続化し中断再開可能に
+- upsert は冪等なので、中断時は再実行で回復する（本規模なら全量でも数分。sync_state.cursor 列は将来の再開機能用に確保のみ）
 - 取得完了後に件数を `meta.count` と突合し、乖離があればログに警告（silent failure 禁止）
 
 ## 名寄せ（Phase 2）
