@@ -247,6 +247,28 @@ def test_sync_profiles_majority_failure_keeps_existing(caplog):
         assert s.scalars(select(RosterAchievement)).first().title == "既存の賞"
 
 
+PROFILE_DUP = """<div id="jusho"><ul>
+<li><p class="title">ベスト賞</p><p class="contents">2020　機関Ａ</p></li>
+<li><p class="title">ベスト賞</p><p class="contents">2020 機関A</p></li>
+</ul></div>"""
+
+
+def test_sync_profiles_dedupes_page_level_duplicates():
+    # 同一ページ内で全角/半角表記ゆれのある同一実績が重複掲載されているケース
+    # → NFKC正規化した(category, title, detail)キーで1件のみ保存する
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Roster(profile_id="111", name_kanji="山田 太郎", division="D",
+                     updated_at=""))
+        s.commit()
+        client = FakeProfileClient({"111": PROFILE_DUP})
+        n = sync_profiles(s, client, today=TODAY)
+        assert n == 1
+        rows = list(s.scalars(select(RosterAchievement)))
+        assert len(rows) == 1
+        assert rows[0].title == "ベスト賞"
+
+
 def test_sync_profiles_zero_entries_keeps_existing(caplog):
     engine = get_engine(":memory:")
     with Session(engine) as s:

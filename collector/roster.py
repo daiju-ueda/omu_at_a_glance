@@ -2,6 +2,7 @@ import datetime
 import logging
 import re
 import time
+import unicodedata
 from collections import defaultdict
 
 import httpx
@@ -154,6 +155,10 @@ def sync_roster(session, client, today: datetime.date) -> int:
     return len(rows)
 
 
+COMMITTEE_TITLE_SKIP_PREFIX = "審議会・政策研究会等の委員会"
+PRESENTATION_TITLE_SUFFIXES = ("国内会議", "国際会議")
+
+
 def parse_profile_achievements(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
     entries: list[dict] = []
@@ -174,25 +179,44 @@ def parse_profile_achievements(html: str) -> list[dict]:
                         break
             if title_el is None:
                 continue
-            title = title_el.get_text(strip=True)
+            title = title_el.get_text(" ", strip=True)
+            title = " ".join(title.split())
             if not title:
                 continue
+            if title.startswith(COMMITTEE_TITLE_SKIP_PREFIX):
+                continue
+            if category == "presentation":
+                for suffix in PRESENTATION_TITLE_SUFFIXES:
+                    title = title.removesuffix(suffix).strip()
+                if not title:
+                    continue
             detail = None
+            year = None
             for p in li.find_all("p", class_="contents"):
                 if p.find_parent(class_="gaiyo-detail") is not None:
                     continue
                 text = p.get_text(" ", strip=True)
-                if text:
+                if not text:
+                    continue
+                if detail is None:
                     detail = text
-                    break
-            year_m = YEAR_RE.search(detail or "")
+                if year is None:
+                    year_m = YEAR_RE.search(text)
+                    if year_m:
+                        year = int(year_m.group(0))
             entries.append({
                 "category": category,
                 "title": title,
-                "year": int(year_m.group(0)) if year_m else None,
+                "year": year,
                 "detail": detail,
             })
     return entries
+
+
+def _entry_key(pid: str, entry: dict) -> tuple:
+    return (pid, entry["category"],
+            unicodedata.normalize("NFKC", entry["title"]),
+            unicodedata.normalize("NFKC", entry.get("detail") or ""))
 
 
 def sync_profiles(session, client, today: datetime.date) -> int:
@@ -201,6 +225,7 @@ def sync_profiles(session, client, today: datetime.date) -> int:
         logger.warning("profiles: rosterが空のためスキップ")
         return 0
     rows: list[dict] = []
+    seen_keys: set = set()
     ok = 0
     for pid in profile_ids:
         try:
@@ -210,6 +235,10 @@ def sync_profiles(session, client, today: datetime.date) -> int:
             continue
         ok += 1
         for entry in parse_profile_achievements(html):
+            key = _entry_key(pid, entry)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             rows.append({**entry, "profile_id": pid})
     if ok < len(profile_ids) * 0.5:
         logger.warning(

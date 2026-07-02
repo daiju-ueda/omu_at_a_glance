@@ -239,10 +239,18 @@ def test_researcher_detail_achievements(client):
     assert "ベスト研究賞" in body   # 受賞歴リスト
     body2 = client.get("/researchers/A2").text
     assert "ベスト研究賞" not in body2
+    # A2はroster未マッチ（is_official_roster=False）→ 実績4指標は0を捏造せずダッシュ表示
+    assert "<dt>受賞（全期間）</dt><dd>–</dd>" in body2
+    assert "<dt>著書（全期間）</dt><dd>–</dd>" in body2
+    assert "<dt>講演（全期間）</dt><dd>–</dd>" in body2
+    assert "<dt>委員歴（全期間）</dt><dd>–</dd>" in body2
 
 
 def test_compare_achievements_group(client):
     body = client.get("/compare?ids=A1,A2").text
     assert "実績（全期間・公式総覧）" in body
-    assert '<td class="best">3</td>' in body   # 受賞数A1=3
+    achievements_html = body[body.index("実績（全期間・公式総覧）"):]
+    # A2は未マッチのためダッシュ表示（0を捏造しない）で、ベスト強調も発生しない
+    assert "<td>–</td>" in achievements_html
+    assert 'class="best"' not in achievements_html
     assert "受賞・著書・講演・委員歴は公式総覧収録分" in body

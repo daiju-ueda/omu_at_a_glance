@@ -44,6 +44,11 @@ def _compare_table(pairs):
     def rattr(attr):
         return lambda r, m: getattr(r, attr)
 
+    def roster_metric(attr):
+        return lambda r, m: (getattr(m, attr)
+                             if m is not None and r.is_official_roster
+                             else None)
+
     spec = [
         ("基本", [
             ("主分野", metric("top_subfield"), _fmt_raw, False),
@@ -74,10 +79,10 @@ def _compare_table(pairs):
             ("科研費配分総額", metric("kaken_total_amount"), _man, True),
         ]),
         ("実績（全期間・公式総覧）", [
-            ("受賞数", metric("awards_count"), _fmt_int, True),
-            ("著書数", metric("books_count"), _fmt_int, True),
-            ("講演数", metric("presentations_count"), _fmt_int, True),
-            ("委員歴数", metric("committee_count"), _fmt_int, True),
+            ("受賞数", roster_metric("awards_count"), _fmt_int, True),
+            ("著書数", roster_metric("books_count"), _fmt_int, True),
+            ("講演数", roster_metric("presentations_count"), _fmt_int, True),
+            ("委員歴数", roster_metric("committee_count"), _fmt_int, True),
         ]),
     ]
     groups = []

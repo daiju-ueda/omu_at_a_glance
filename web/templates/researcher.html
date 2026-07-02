@@ -34,10 +34,10 @@
   <div><dt>科研費（代表）</dt><dd>{{ m.kaken_pi_count }}</dd></div>
   <div><dt>科研費（分担）</dt><dd>{{ m.kaken_copi_count }}</dd></div>
   <div><dt>科研費配分総額</dt><dd>{{ m.kaken_total_amount|man }}{% if ranks.kaken_total_amount %}<span class="rank">学内{{ ranks.kaken_total_amount[0] }}位</span>{% endif %}</dd></div>
-  <div><dt>受賞（全期間）</dt><dd>{{ m.awards_count }}</dd></div>
-  <div><dt>著書（全期間）</dt><dd>{{ m.books_count }}</dd></div>
-  <div><dt>講演（全期間）</dt><dd>{{ m.presentations_count }}</dd></div>
-  <div><dt>委員歴（全期間）</dt><dd>{{ m.committee_count }}</dd></div>
+  <div><dt>受賞（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.awards_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>著書（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.books_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>講演（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.presentations_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>委員歴（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.committee_count }}{% else %}–{% endif %}</dd></div>
   {% endif %}
   <div><dt>h指数（全期間）</dt><dd>{{ r.h_index }}</dd></div>
   <div><dt>i10指数（全期間）</dt><dd>{{ r.i10_index }}</dd></div>
