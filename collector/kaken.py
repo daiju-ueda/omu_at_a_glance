@@ -1,20 +1,28 @@
+import datetime
 import json
 import logging
 import re as _re
 import time
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 
 import httpx
 
 # XXE/billion-laughs対策: パースは必ずdefusedxml経由で行う
 # （ET.tostringは既にパース済みのtreeの直列化なのでstdlibで安全）
 from defusedxml.ElementTree import fromstring as _safe_fromstring
+from sqlalchemy import delete, select
+
+from collector.nameutil import kana_part_variants, normalize_name
+from collector.sync import window_start
+from db.models import Grant, GrantMember, Researcher, SyncState
 
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://kaken.nii.ac.jp"
 RETRY_STATUSES = {429, 500, 502, 503}
 MAX_TRIES = 6
+PAGE_SIZE_KAKEN = 500
 
 
 class KakenAuthError(Exception):
@@ -113,3 +121,89 @@ def parse_grants(xml_text: str) -> tuple[list[tuple[dict, list[dict]]], int]:
         except (ValueError, AttributeError) as e:
             logger.warning("grantAwardのパースをスキップ: %s", e)
     return entries, total
+
+
+def sync_kaken(session, client, today: datetime.date,
+               institution: str = "大阪公立大学") -> int:
+    window_year = int(window_start(today)[:4])
+    current_year = today.year
+    entries: list[tuple[dict, list[dict]]] = []
+    st = 1
+    while True:
+        xml_text = client.fetch({"kw": institution,
+                                 "rw": PAGE_SIZE_KAKEN, "st": st})
+        page_entries, total = parse_grants(xml_text)
+        entries.extend(page_entries)
+        st += PAGE_SIZE_KAKEN
+        if st > total:
+            break
+
+    kept = []
+    for grant, members in entries:
+        if grant.pop("institution", "") != institution:
+            continue
+        end = grant["end_year"]
+        start = grant["start_year"]
+        if end is not None and end < window_year:
+            continue
+        if start is not None and start > current_year:
+            continue
+        kept.append((grant, members))
+
+    if not kept:
+        logger.warning("KAKEN: 0件のため洗い替えをスキップ（既存データ保持）")
+        return 0
+
+    session.execute(delete(GrantMember))
+    session.execute(delete(Grant))
+    for grant, members in kept:
+        session.add(Grant(**grant, updated_at=today.isoformat()))
+        seen_member_keys = set()
+        for m in members:
+            key = (m["award_id"], m["erad_id"])
+            if key in seen_member_keys:
+                continue
+            seen_member_keys.add(key)
+            session.add(GrantMember(**m))
+    session.merge(SyncState(source="kaken", cursor=None,
+                            last_synced_at=today.isoformat()))
+    session.commit()
+    logger.info("KAKEN sync done: %d grants", len(kept))
+    return len(kept)
+
+
+def match_members(session) -> int:
+    index: dict[str, set[str]] = defaultdict(set)
+    for rid, name in session.execute(
+            select(Researcher.openalex_id, Researcher.display_name)):
+        index[normalize_name(name)].add(rid)
+
+    matched = 0
+    name_ja_by_rid: dict[str, str] = {}
+    for member in session.scalars(select(GrantMember)):
+        member.matched_researcher_id = None
+        if not member.name_kana:
+            continue
+        parts = member.name_kana.replace("　", " ").split()
+        if len(parts) != 2:
+            continue
+        family_variants = kana_part_variants(parts[0])
+        given_variants = kana_part_variants(parts[1])
+        candidates: set[str] = set()
+        for fam in family_variants:
+            for giv in given_variants:
+                candidates |= index.get(normalize_name(f"{giv} {fam}"), set())
+                candidates |= index.get(normalize_name(f"{fam} {giv}"), set())
+        if len(candidates) == 1:
+            rid = candidates.pop()
+            member.matched_researcher_id = rid
+            name_ja_by_rid[rid] = member.name_kanji.replace("　", " ")
+            matched += 1
+
+    for rid, name_ja in name_ja_by_rid.items():
+        researcher = session.get(Researcher, rid)
+        if researcher is not None:
+            researcher.name_ja = name_ja
+    session.commit()
+    logger.info("KAKEN名寄せ: %d人を一意マッチ", matched)
+    return matched
