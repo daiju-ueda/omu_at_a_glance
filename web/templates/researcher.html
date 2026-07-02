@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ r.name_ja or r.display_name }} - OMU研究者比較{% endblock %}
+{% block content %}
+<h2>{{ r.name_ja or r.display_name }}</h2>
+<p class="links">
+  <a href="https://openalex.org/{{ r.openalex_id }}" target="_blank">OpenAlex</a>
+  {% if r.orcid %}<a href="https://orcid.org/{{ r.orcid }}" target="_blank">ORCID</a>{% endif %}
+</p>
+{% if m %}
+<dl class="metrics">
+  <div><dt>3年論文数</dt><dd>{{ m.works_count_3y }}</dd></div>
+  <div><dt>総被引用数</dt><dd>{{ m.total_citations }}</dd></div>
+  <div><dt>FWCI平均</dt><dd>{{ m.fwci_mean|fmt }}</dd></div>
+  <div><dt>FWCI中央値</dt><dd>{{ m.fwci_median|fmt }}</dd></div>
+  <div><dt>top10%論文</dt><dd>{{ m.top10pct_count }}</dd></div>
+  <div><dt>筆頭著者</dt><dd>{{ m.first_author_count }}</dd></div>
+  <div><dt>責任著者</dt><dd>{{ m.corresponding_count }}</dd></div>
+  <div><dt>h指数（全期間）</dt><dd>{{ r.h_index }}</dd></div>
+</dl>
+{% else %}
+<p>メトリクス未計算です。</p>
+{% endif %}
+<h3>論文（直近3年・被引用数順）</h3>
+<table>
+<thead><tr><th>タイトル</th><th>掲載誌</th><th>発行日</th><th>被引用</th><th>FWCI</th><th>役割</th></tr></thead>
+<tbody>
+{% for row in works %}
+{% set w = row.Work %}{% set a = row.Authorship %}
+<tr>
+  <td>
+    {% if w.doi %}<a href="https://doi.org/{{ w.doi }}" target="_blank">{{ w.title }}</a>
+    {% else %}<a href="https://openalex.org/{{ w.openalex_id }}" target="_blank">{{ w.title }}</a>{% endif %}
+    {% if w.is_top1pct %}<span class="badge top1">top1%</span>
+    {% elif w.is_top10pct %}<span class="badge top10">top10%</span>{% endif %}
+  </td>
+  <td>{{ w.venue or "–" }}</td>
+  <td>{{ w.publication_date }}</td>
+  <td>{{ w.cited_by_count }}</td>
+  <td>{{ w.fwci|fmt }}</td>
+  <td>{% if a.author_position == 'first' %}筆頭{% endif %}{% if a.is_corresponding %}{% if a.author_position == 'first' %}・{% endif %}責任{% endif %}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

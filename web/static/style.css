@@ -1,0 +1,32 @@
+:root { --ink: #1a1a2e; --muted: #6b7280; --line: #e5e7eb; --accent: #0f4c81; --bg: #fafaf8; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; color: var(--ink); background: var(--bg); font-size: 15px; line-height: 1.6; }
+header { display: flex; align-items: baseline; gap: 1.5rem; padding: 0.9rem 1.5rem; background: var(--accent); }
+header h1 { font-size: 1.1rem; margin: 0; }
+header h1 a { color: #fff; text-decoration: none; }
+header nav a { color: #cfe3f5; text-decoration: none; margin-right: 1rem; font-size: 0.9rem; }
+header nav a:hover { color: #fff; }
+main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+h2 { font-size: 1.25rem; }
+h2 .total { font-size: 0.85rem; color: var(--muted); font-weight: normal; margin-left: 0.5rem; }
+.controls { margin: 0.8rem 0 1.2rem; display: flex; gap: 0.6rem; align-items: center; }
+.controls input[type="number"] { width: 5rem; }
+.controls input, .controls button { padding: 0.3rem 0.6rem; border: 1px solid var(--line); border-radius: 4px; font-size: 0.9rem; }
+.controls button { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; }
+table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.9rem; }
+th, td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); text-align: left; }
+th { background: #f3f4f6; white-space: nowrap; }
+th a { color: var(--accent); text-decoration: none; }
+tbody tr:hover { background: #f0f6fb; }
+td a { color: var(--accent); }
+.badge { display: inline-block; font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 999px; margin-left: 0.4rem; vertical-align: middle; }
+.badge.top1 { background: #7c2d12; color: #fff; }
+.badge.top10 { background: #b45309; color: #fff; }
+.links a { margin-right: 0.8rem; color: var(--accent); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; margin: 1rem 0 1.5rem; }
+.metrics div { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.8rem; }
+.metrics dt { font-size: 0.75rem; color: var(--muted); }
+.metrics dd { margin: 0; font-size: 1.2rem; font-weight: 600; }
+.pager { margin: 1rem 0; display: flex; gap: 1rem; }
+.pager a { color: var(--accent); }
+footer { max-width: 1100px; margin: 1rem auto 2rem; padding: 0 1.5rem; color: var(--muted); font-size: 0.8rem; }

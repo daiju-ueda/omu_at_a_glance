@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}OMU研究者比較{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1><a href="/">OMU研究者比較</a></h1>
+  <nav><a href="/">ランキング</a><a href="/search">検索</a></nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>OpenAlex収録分に基づく（直近3年ローリング）{% if synced %}・最終同期: {{ synced }}{% endif %}</footer>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>ランキング <span class="total">{{ total }}人</span></h2>
+<form method="get" class="controls">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <label>最低論文数（3年）: <input type="number" name="min_works" value="{{ min_works }}" min="0"></label>
+  <button>絞り込み</button>
+</form>
+<table>
+<thead><tr>
+  <th>#</th>
+  <th>氏名</th>
+  <th><a href="/?sort=works_count_3y&min_works={{ min_works }}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=total_citations&min_works={{ min_works }}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=fwci_mean&min_works={{ min_works }}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
+  <th>FWCI中央値</th>
+  <th><a href="/?sort=top10pct_count&min_works={{ min_works }}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
+  <th>筆頭</th>
+  <th>責任</th>
+</tr></thead>
+<tbody>
+{% for row in rows %}
+{% set r = row.Researcher %}{% set m = row.ResearcherMetrics %}
+<tr>
+  <td>{{ (page - 1) * page_size + loop.index }}</td>
+  <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
+  <td>{{ m.works_count_3y }}</td>
+  <td>{{ m.total_citations }}</td>
+  <td>{{ m.fwci_mean|fmt }}</td>
+  <td>{{ m.fwci_median|fmt }}</td>
+  <td>{{ m.top10pct_count }}</td>
+  <td>{{ m.first_author_count }}</td>
+  <td>{{ m.corresponding_count }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="pager">
+{% if page > 1 %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page - 1 }}">← 前へ</a>{% endif %}
+{% if page * page_size < total %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page + 1 }}">次へ →</a>{% endif %}
+</div>
+{% endblock %}
