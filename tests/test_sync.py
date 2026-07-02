@@ -47,14 +47,6 @@ def test_sync_authors_upserts_and_records_state():
     assert "last_known_institutions.id:I4387152983" in client.calls[0][1]
 
 
-def test_sync_authors_incremental_adds_updated_filter():
-    engine = get_engine(":memory:")
-    client = FakeClient([])
-    with Session(engine) as s:
-        sync_authors(s, client, today=TODAY, since="2026-06-25")
-    assert "from_updated_date:2026-06-25" in client.calls[0][1]
-
-
 def test_sync_works_upserts_works_and_authorships():
     engine = get_engine(":memory:")
     client = FakeClient([WORK], count_value=1)

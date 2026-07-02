@@ -60,8 +60,8 @@ researchers/
 1. **authors sync**: `last_known_institutions.id:I4387152983` を cursor paging で全件 upsert
 2. **works sync**: `institutions.id:I4387152983,from_publication_date:<今日-3年>` を全件 upsert、authorships を展開（OMU所属の著者行のみ researchers に紐付け、外部共著者は authorships に author_id のみ保持）
 3. **metrics 再計算**: researcher_metrics を洗い替え
-4. **incremental**: 2回目以降は `from_updated_date:<前回sync>` で差分のみ。被引用数は OpenAlex 側で随時更新されるため、月1回は works の full re-sync で被引用数を洗い替え
-5. cron: 週1回 incremental ＋ 月1回 full（GPU 不使用のため GPU 調整レイヤーは不要）
+4. **再同期**: from_updated_date フィルタは Premium 限定と判明（2026-07-02 実測）したため差分同期は行わない。週1回の全量再同期（約55リクエスト・数分）で最新化し、被引用数の更新も同時に反映する
+5. cron: 週1回 全量同期（GPU 不使用のため GPU 調整レイヤーは不要）
 
 ## エラー処理
 

@@ -40,11 +40,8 @@ def _record_state(session, source: str, today: datetime.date):
 
 
 def sync_authors(session, client, today: datetime.date,
-                 institution_id: str = INSTITUTION_ID,
-                 since: str | None = None) -> int:
+                 institution_id: str = INSTITUTION_ID) -> int:
     filter_str = f"last_known_institutions.id:{institution_id}"
-    if since:
-        filter_str += f",from_updated_date:{since}"
     n = 0
     for rec in client.paginate("authors", filter_str, select=AUTHOR_SELECT):
         _upsert(session, Researcher, parse_author(rec))
@@ -58,12 +55,9 @@ def sync_authors(session, client, today: datetime.date,
 
 
 def sync_works(session, client, today: datetime.date,
-               institution_id: str = INSTITUTION_ID,
-               since: str | None = None) -> int:
+               institution_id: str = INSTITUTION_ID) -> int:
     filter_str = (f"institutions.id:{institution_id},"
                   f"from_publication_date:{window_start(today)}")
-    if since:
-        filter_str += f",from_updated_date:{since}"
     n = 0
     for rec in client.paginate("works", filter_str, select=WORK_SELECT):
         work_kw, authorships = parse_work(rec)
@@ -75,9 +69,8 @@ def sync_works(session, client, today: datetime.date,
             session.commit()
             logger.info("works: %d upserted", n)
     _record_state(session, "works", today)
-    if since is None:  # full同期時のみ全件数を突合
-        expected = client.count("works", filter_str)
-        if expected != n:
-            logger.warning("works count mismatch: api=%d local=%d", expected, n)
+    expected = client.count("works", filter_str)
+    if expected != n:
+        logger.warning("works count mismatch: api=%d local=%d", expected, n)
     logger.info("works sync done: %d", n)
     return n
