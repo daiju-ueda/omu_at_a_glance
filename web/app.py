@@ -25,6 +25,72 @@ def _man(value):
     return "–" if not value else f"{value // 10000:,}万円"
 
 
+def _fmt_int(value):
+    return "–" if value is None else f"{value:,}"
+
+
+def _fmt_raw(value):
+    return value if value else "–"
+
+
+def _compare_table(pairs):
+    """pairs: list[(Researcher, ResearcherMetrics|None)] → グループ/行/セル構造。
+    最良値はサーバー側で計算する（数値のみ・None除外・全員同値なら無し）"""
+
+    def metric(attr):
+        return lambda r, m: getattr(m, attr) if m is not None else None
+
+    def rattr(attr):
+        return lambda r, m: getattr(r, attr)
+
+    spec = [
+        ("基本", [
+            ("主分野", metric("top_subfield"), _fmt_raw, False),
+            ("h指数（全期間）", rattr("h_index"), _fmt_int, True),
+            ("i10指数（全期間）", rattr("i10_index"), _fmt_int, True),
+        ]),
+        ("生産性", [
+            ("3年論文数", metric("works_count_3y"), _fmt_int, True),
+            ("論文数(補正)", metric("fractional_works"), _fmt, True),
+            ("筆頭著者数", metric("first_author_count"), _fmt_int, True),
+            ("責任著者数", metric("corresponding_count"), _fmt_int, True),
+        ]),
+        ("インパクト", [
+            ("総被引用数", metric("total_citations"), _fmt_int, True),
+            ("被引用(補正)", metric("fractional_citations"), _fmt, True),
+            ("FWCI平均", metric("fwci_mean"), _fmt, True),
+            ("FWCI中央値", metric("fwci_median"), _fmt, True),
+            ("top10%論文数", metric("top10pct_count"), _fmt_int, True),
+            ("top1%論文数", metric("top1pct_count"), _fmt_int, True),
+        ]),
+        ("連携・資金", [
+            ("国際共著率", metric("intl_collab_rate"), _pct, True),
+            ("産学連携率", metric("corp_collab_rate"), _pct, True),
+            ("OA率", metric("oa_rate"), _pct, True),
+            ("科研費（代表）", metric("kaken_pi_count"), _fmt_int, True),
+            ("科研費（分担）", metric("kaken_copi_count"), _fmt_int, True),
+            ("科研費配分総額", metric("kaken_total_amount"), _man, True),
+        ]),
+    ]
+    groups = []
+    for group_label, rows_spec in spec:
+        rows = []
+        for label, getter, formatter, highlight in rows_spec:
+            values = [getter(r, m) for r, m in pairs]
+            numeric = [v for v in values if isinstance(v, (int, float))]
+            best = None
+            if highlight and len(numeric) >= 2 and len(set(numeric)) > 1:
+                best = max(numeric)
+            rows.append({
+                "label": label,
+                "cells": [{"text": formatter(v),
+                           "best": best is not None and v == best}
+                          for v in values],
+            })
+        groups.append({"label": group_label, "rows": rows})
+    return groups
+
+
 MAX_PARAM = 1_000_000
 
 
@@ -89,6 +155,30 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
                 rows = queries.search(session, q)
         return templates.TemplateResponse(request, "search.html", {
             "q": q, "rows": rows, "synced": synced,
+        })
+
+    @app.get("/compare", response_class=HTMLResponse)
+    def compare_page(request: Request, ids: str = ""):
+        id_list: list[str] = []
+        for raw_id in ids.split(","):
+            rid = raw_id.strip()
+            if rid and rid not in id_list:
+                id_list.append(rid)
+        id_list = id_list[:4]
+        with Session(engine) as session:
+            synced = queries.last_synced(session)
+            entries = queries.compare(session, id_list)
+        if len(entries) < 2:
+            return templates.TemplateResponse(request, "compare.html", {
+                "pairs": [], "groups": [], "subfield_warning": False,
+                "synced": synced,
+            })
+        pairs = [(row.Researcher, row.ResearcherMetrics) for row in entries]
+        subfields = {m.top_subfield for r, m in pairs
+                     if m is not None and m.top_subfield}
+        return templates.TemplateResponse(request, "compare.html", {
+            "pairs": pairs, "groups": _compare_table(pairs),
+            "subfield_warning": len(subfields) > 1, "synced": synced,
         })
 
     return app

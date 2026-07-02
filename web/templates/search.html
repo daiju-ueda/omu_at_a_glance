@@ -8,11 +8,12 @@
 {% if q %}
   {% if rows %}
   <table>
-  <thead><tr><th>氏名</th><th>3年論文数</th><th>FWCI平均</th></tr></thead>
+  <thead><tr><th></th><th>氏名</th><th>3年論文数</th><th>FWCI平均</th></tr></thead>
   <tbody>
   {% for row in rows %}
   {% set r = row.Researcher %}{% set m = row.ResearcherMetrics %}
   <tr>
+    <td><input type="checkbox" class="cmp" data-id="{{ r.openalex_id }}" data-name="{{ r.name_ja or r.display_name }}"></td>
     <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
     <td>{% if m %}{{ m.works_count_3y }}{% else %}–{% endif %}</td>
     <td>{% if m %}{{ m.fwci_mean|fmt }}{% else %}–{% endif %}</td>

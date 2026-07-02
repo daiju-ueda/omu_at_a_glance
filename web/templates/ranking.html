@@ -8,6 +8,7 @@
 </form>
 <table>
 <thead><tr>
+  <th></th>
   <th>#</th>
   <th>氏名</th>
   <th><a href="/?sort=works_count_3y&min_works={{ min_works }}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
@@ -25,6 +26,7 @@
 {% for row in rows %}
 {% set r = row.Researcher %}{% set m = row.ResearcherMetrics %}
 <tr>
+  <td><input type="checkbox" class="cmp" data-id="{{ r.openalex_id }}" data-name="{{ r.name_ja or r.display_name }}"></td>
   <td>{{ (page - 1) * page_size + loop.index }}</td>
   <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
   <td>{{ m.works_count_3y }}</td>

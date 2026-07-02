@@ -113,3 +113,42 @@ def test_researcher_detail_kaken_card(client):
     assert "7,500万円" in body
     body3 = client.get("/researchers/A3").text
     assert "科研費（代表）" in body3  # 0件でもカードは出る（金額は–）
+
+
+def test_compare_page_basic(client):
+    body = client.get("/compare?ids=A1,A2").text
+    assert "Taro Yamada" in body and "Hanako Suzuki" in body
+    # 総被引用はA2(900)が最良
+    assert '<td class="best">900</td>' in body
+    # FWCI平均はA2がNone→数値1個のみ→ハイライトなし
+    assert '<td class="best">3.50</td>' not in body
+    # A2はtop_subfield None → 非NULLは1種類 → 注意なし
+    assert "主分野が異なります" not in body
+    assert "OpenAlex収録分に基づく" in body
+
+
+def test_compare_order_and_subfield_warning(client):
+    body = client.get("/compare?ids=A3,A1").text
+    assert body.index("Ichiro Tanaka") < body.index("Taro Yamada")  # 順序保持
+    assert "主分野が異なります" in body  # ML vs Health Informatics
+
+
+def test_compare_metricsless_and_dedupe(client):
+    body = client.get("/compare?ids=A1,A4,A1").text
+    assert "佐藤次郎" in body  # metrics無しでも列は出る
+    assert body.count("Taro Yamada") == 1  # 重複除去（列見出しに1回だけ）
+
+
+def test_compare_insufficient_ids(client):
+    for url in ("/compare", "/compare?ids=A1", "/compare?ids=,,bogus"):
+        resp = client.get(url)
+        assert resp.status_code == 200
+        assert "2〜4人選んでください" in resp.text
+
+
+def test_listing_pages_have_compare_controls(client):
+    ranking = client.get("/?min_works=0").text
+    assert 'class="cmp"' in ranking and 'data-id="A1"' in ranking
+    assert 'id="compare-bar"' in ranking and "/static/compare.js" in ranking
+    search = client.get("/search?q=yama").text
+    assert 'class="cmp"' in search and 'data-id="A1"' in search
