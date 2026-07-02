@@ -197,7 +197,8 @@ OMU_INSTITUTION = "大阪公立大学"
 def match_members(session) -> int:
     index: dict[str, set[str]] = defaultdict(set)
     for rid, name in session.execute(
-            select(Researcher.openalex_id, Researcher.display_name)):
+            select(Researcher.openalex_id, Researcher.display_name)
+            .where(Researcher.canonical_id.is_(None))):
         index[normalize_name(name)].add(rid)
 
     # rid -> このrunで一意マッチした GrantMember のリスト（後で衝突検知に使う）

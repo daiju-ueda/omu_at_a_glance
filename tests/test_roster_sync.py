@@ -167,3 +167,21 @@ def test_match_roster_stale_name_ja_not_resurrected():
         assert n == 0
         assert s.get(Roster, "111").matched_researcher_id is None
         assert s.get(Researcher, "A9").department is None
+
+
+def test_match_roster_ignores_aliases():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(_researcher("A1", "Taro Yamada"))
+        alias = _researcher("A1b", "Taro Yamada")
+        alias.canonical_id = "A1"
+        s.add(alias)
+        s.add(Roster(profile_id="111", name_kanji="山田 太郎",
+                     name_kana="ヤマダ　タロウ", position="教授",
+                     division="大学院文学研究科", updated_at=""))
+        s.commit()
+        # エイリアス除外により候補は正準1人 → 一意マッチ成立
+        assert match_roster(s) == 1
+        assert s.get(Roster, "111").matched_researcher_id == "A1"
+        assert s.get(Researcher, "A1").is_official_roster is True
+        assert s.get(Researcher, "A1b").is_official_roster is False
