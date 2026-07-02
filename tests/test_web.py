@@ -14,7 +14,7 @@ def test_ranking_page_default(client):
     assert resp.status_code == 200
     body = resp.text
     assert "Ichiro Tanaka" in body  # 既定min_works=1で全員表示
-    assert body.index("Taro Yamada") < body.index("Ichiro Tanaka")   # fwci_total 35.0 > 19.8
+    assert body.index("山田 太郎") < body.index("Ichiro Tanaka")   # fwci_total 35.0 > 19.8
     assert body.index("Ichiro Tanaka") < body.index("Hanako Suzuki") # 19.8 > 0
     assert "全3人中 3人を表示" in body
     assert "最終同期: 2026-07-02" in body
@@ -24,7 +24,7 @@ def test_ranking_page_default(client):
 
 def test_ranking_sort_and_min_works(client):
     body = client.get("/?sort=total_citations&min_works=0").text
-    assert body.index("Hanako Suzuki") < body.index("Taro Yamada")
+    assert body.index("Hanako Suzuki") < body.index("山田 太郎")
     body5 = client.get("/?min_works=5").text
     assert "全3人中 2人を表示" in body5
     assert "Ichiro Tanaka" not in body5
@@ -32,7 +32,7 @@ def test_ranking_sort_and_min_works(client):
 
 def test_ranking_fractional_sort_and_top1_column(client):
     body = client.get("/?sort=fractional_citations&min_works=0").text
-    assert body.index("Hanako Suzuki") < body.index("Taro Yamada")  # 300>120.5
+    assert body.index("Hanako Suzuki") < body.index("山田 太郎")  # 300>120.5
     assert "top1%" in body
 
 
@@ -49,16 +49,16 @@ def test_researcher_detail_new_metrics(client):
 def test_ranking_invalid_params_fall_back(client):
     resp = client.get("/?sort=bogus&min_works=abc&page=-5")
     assert resp.status_code == 200
-    assert "Taro Yamada" in resp.text
+    assert "山田 太郎" in resp.text
 
     resp = client.get("/?page=99999999999999999999&min_works=99999999999999999999")
     assert resp.status_code == 200
-    assert "Taro Yamada" in resp.text
+    assert "山田 太郎" in resp.text
 
 
 def test_researcher_detail(client):
     body = client.get("/researchers/A1").text
-    assert "Taro Yamada" in body
+    assert "山田 太郎" in body
     assert "Deep Learning in Radiology" in body
     assert "Old Paper Outside Window" not in body  # ウィンドウ外
     assert "orcid.org/0000-0001-1111-1111" in body
@@ -72,7 +72,7 @@ def test_researcher_404(client):
 
 
 def test_search(client):
-    assert "Taro Yamada" in client.get("/search?q=yama").text
+    assert "山田 太郎" in client.get("/search?q=yama").text
     assert "見つかりませんでした" in client.get("/search?q=zzzzz").text
     assert client.get("/search").status_code == 200
 
@@ -104,7 +104,7 @@ def test_ranking_kaken_column_and_sort(client):
     body = client.get("/?sort=kaken_total_amount&min_works=0").text
     assert "科研費総額" in body
     assert "7,500万円" in body
-    assert body.index("Taro Yamada") < body.index("Hanako Suzuki")
+    assert body.index("山田 太郎") < body.index("Hanako Suzuki")
 
 
 def test_researcher_detail_kaken_card(client):
@@ -117,7 +117,7 @@ def test_researcher_detail_kaken_card(client):
 
 def test_compare_page_basic(client):
     body = client.get("/compare?ids=A1,A2").text
-    assert "Taro Yamada" in body and "Hanako Suzuki" in body
+    assert "山田 太郎" in body and "Hanako Suzuki" in body
     # 総被引用はA2(900)が最良
     assert '<td class="best">900</td>' in body
     # FWCI平均はA2がNone→数値1個のみ→ハイライトなし
@@ -129,14 +129,14 @@ def test_compare_page_basic(client):
 
 def test_compare_order_and_subfield_warning(client):
     body = client.get("/compare?ids=A3,A1").text
-    assert body.index("Ichiro Tanaka") < body.index("Taro Yamada")  # 順序保持
+    assert body.index("Ichiro Tanaka") < body.index("山田 太郎")  # 順序保持
     assert "主分野が異なります" in body  # ML vs Health Informatics
 
 
 def test_compare_metricsless_and_dedupe(client):
     body = client.get("/compare?ids=A1,A4,A1").text
     assert "佐藤次郎" in body  # metrics無しでも列は出る
-    assert body.count("Taro Yamada") == 1  # 重複除去（列見出しに1回だけ）
+    assert body.count("山田 太郎") == 1  # 重複除去（列見出しに1回だけ）
 
 
 def test_compare_insufficient_ids(client):
@@ -191,3 +191,34 @@ def test_compare_has_fwci_total_row(client):
     body = client.get("/compare?ids=A1,A3").text
     assert "FWCI合計" in body
     assert '<td class="best">35.00</td>' in body
+
+
+def test_ranking_department_dropdown_and_filter(client):
+    body = client.get("/").text
+    assert 'name="department"' in body
+    assert "大学院医学研究科" in body
+    filtered = client.get("/?department=大学院医学研究科&min_works=0").text
+    assert "山田 太郎" in filtered
+    assert "Hanako Suzuki" not in filtered
+    assert "大学院医学研究科: 全1人中 1人を表示" in filtered
+    # ソートリンクがdepartmentを保持
+    assert "sort=total_citations&min_works=0&department=" in filtered
+
+
+def test_ranking_invalid_department_falls_back(client):
+    body = client.get("/?department=偽の部局&min_works=0").text
+    assert "Hanako Suzuki" in body  # 全学表示
+
+
+def test_departments_page(client):
+    body = client.get("/departments").text
+    assert "大学院医学研究科" in body and "大学院情報学研究科" in body
+    assert body.index("大学院医学研究科") < body.index("大学院情報学研究科")
+    assert "35.00" in body          # 人あたりFWCI合計
+    assert "名寄せできた研究者のみ" in body
+    assert "/?department=" in body  # 部局リンク
+
+
+def test_researcher_detail_shows_department(client):
+    body = client.get("/researchers/A1").text
+    assert "大学院医学研究科" in body and "教授" in body

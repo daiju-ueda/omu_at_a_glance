@@ -2,6 +2,7 @@
 {% block title %}{{ r.name_ja or r.display_name }} - OMU研究者比較{% endblock %}
 {% block content %}
 <h2>{{ r.name_ja or r.display_name }}</h2>
+{% if r.department %}<p class="affil">{{ r.department }}{% if r.position %}・{{ r.position }}{% endif %}</p>{% endif %}
 <p class="links">
   <a href="https://openalex.org/{{ r.openalex_id }}" target="_blank">OpenAlex</a>
   {% if r.orcid %}<a href="https://orcid.org/{{ r.orcid }}" target="_blank">ORCID</a>{% endif %}

@@ -2,7 +2,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from db.models import get_engine
-from web.queries import compare, last_synced, metric_ranks, ranking, researcher_detail, search
+from web.queries import (compare, department_stats, departments_list,
+                         last_synced, metric_ranks, ranking,
+                         researcher_detail, search)
 
 
 def _session(path):
@@ -118,6 +120,29 @@ def test_metric_ranks_outside_population(seeded_db_path):
     with _session(seeded_db_path) as s:
         assert metric_ranks(s, "A4") is None    # metrics行なし
         assert metric_ranks(s, "NOPE") is None
+
+
+def test_ranking_department_filter(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        rows, total, total_all = ranking(s, department="大学院医学研究科",
+                                         min_works=0)
+        assert [r.Researcher.openalex_id for r in rows] == ["A1"]
+        assert total == 1 and total_all == 1
+        rows, _, _ = ranking(s, department="存在しない部局", min_works=0)
+        assert rows == []
+
+
+def test_departments_list_and_stats(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        assert departments_list(s) == ["大学院医学研究科", "大学院情報学研究科"]
+        stats = department_stats(s)
+        assert [d["department"] for d in stats] == [
+            "大学院医学研究科", "大学院情報学研究科"]  # fwci_per_capita 35.0 > 19.8
+        med = stats[0]
+        assert med["members"] == 1
+        assert med["works"] == 10
+        assert med["fwci_per_capita"] == 35.0
+        assert med["kaken_amount"] == 75_000_000
 
 
 def test_metric_ranks_ties_share_rank(seeded_db_path):

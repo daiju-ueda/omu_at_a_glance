@@ -4,9 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from db.models import get_engine
+from db.models import ResearcherMetrics, get_engine
 from web import queries
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -120,17 +121,22 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def ranking_page(request: Request, sort: str = "fwci_total",
-                     min_works: str = "1", page: str = "1"):
+                     min_works: str = "1", page: str = "1",
+                     department: str = ""):
         sort_key = sort if sort in queries.SORT_COLUMNS else "fwci_total"
         mw = _int_param(min_works, 1)
         pg = _int_param(page, 1, minimum=1)
         with Session(engine) as session:
-            rows, total, total_all = queries.ranking(session, sort_key, mw, pg)
+            departments = queries.departments_list(session)
+            dept = department if department in departments else None
+            rows, total, total_all = queries.ranking(
+                session, sort_key, mw, pg, department=dept)
             synced = queries.last_synced(session)
         return templates.TemplateResponse(request, "ranking.html", {
             "rows": rows, "total": total, "total_all": total_all,
             "sort": sort_key, "min_works": mw, "page": pg,
             "page_size": queries.PAGE_SIZE, "synced": synced,
+            "departments": departments, "department": dept,
         })
 
     @app.get("/researchers/{openalex_id}", response_class=HTMLResponse)
@@ -182,6 +188,19 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
         return templates.TemplateResponse(request, "compare.html", {
             "pairs": pairs, "groups": _compare_table(pairs),
             "subfield_warning": len(subfields) > 1, "synced": synced,
+        })
+
+    @app.get("/departments", response_class=HTMLResponse)
+    def departments_page(request: Request):
+        with Session(engine) as session:
+            stats = queries.department_stats(session)
+            matched = sum(item["members"] for item in stats)
+            total_count = session.scalar(
+                select(func.count()).select_from(ResearcherMetrics))
+            synced = queries.last_synced(session)
+        return templates.TemplateResponse(request, "departments.html", {
+            "stats": stats, "matched": matched, "total_count": total_count,
+            "synced": synced,
         })
 
     return app
