@@ -29,6 +29,9 @@
   <div><dt>preprint</dt><dd>{{ m.preprint_count }}</dd></div>
   <div><dt>データ/SW</dt><dd>{{ m.dataset_software_count }}</dd></div>
   <div><dt>主分野</dt><dd>{{ m.top_subfield or "–" }}</dd></div>
+  <div><dt>科研費（代表）</dt><dd>{{ m.kaken_pi_count }}</dd></div>
+  <div><dt>科研費（分担）</dt><dd>{{ m.kaken_copi_count }}</dd></div>
+  <div><dt>科研費配分総額</dt><dd>{{ m.kaken_total_amount|man }}</dd></div>
   {% endif %}
   <div><dt>h指数（全期間）</dt><dd>{{ r.h_index }}</dd></div>
   <div><dt>i10指数（全期間）</dt><dd>{{ r.i10_index }}</dd></div>

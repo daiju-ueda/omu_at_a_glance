@@ -98,3 +98,18 @@ def test_researcher_without_metrics_renders(client):
 def test_pct_zero_renders_as_zero_percent(client):
     body = client.get("/researchers/A3").text
     assert "0%" in body  # corp_collab_rate=0.0は「–」でなく0%
+
+
+def test_ranking_kaken_column_and_sort(client):
+    body = client.get("/?sort=kaken_total_amount&min_works=0").text
+    assert "科研費総額" in body
+    assert "7,500万円" in body
+    assert body.index("Taro Yamada") < body.index("Hanako Suzuki")
+
+
+def test_researcher_detail_kaken_card(client):
+    body = client.get("/researchers/A1").text
+    assert "科研費（代表）" in body and "科研費（分担）" in body
+    assert "7,500万円" in body
+    body3 = client.get("/researchers/A3").text
+    assert "科研費（代表）" in body3  # 0件でもカードは出る（金額は–）

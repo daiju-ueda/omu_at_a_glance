@@ -21,6 +21,10 @@ def _pct(value):
     return "–" if value is None else f"{value * 100:.0f}%"
 
 
+def _man(value):
+    return "–" if not value else f"{value // 10000:,}万円"
+
+
 MAX_PARAM = 1_000_000
 
 
@@ -45,6 +49,7 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
     templates.env.filters["fmt"] = _fmt
     templates.env.filters["pct"] = _pct
+    templates.env.filters["man"] = _man
 
     @app.get("/", response_class=HTMLResponse)
     def ranking_page(request: Request, sort: str = "fwci_mean",

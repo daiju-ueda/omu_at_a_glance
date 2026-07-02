@@ -7,6 +7,14 @@
 
     uv sync
 
+## 環境変数
+
+KAKEN同期にはCiNii/KAKENのappidが必要（未設定なら警告してスキップ）:
+
+    echo "KAKEN_APPID=<発行されたappid>" > .env
+
+`.env` はgitignore対象。コミットしないこと。
+
 ## 使い方
 
     uv run python scripts/sync.py   # 全量同期＋メトリクス再計算

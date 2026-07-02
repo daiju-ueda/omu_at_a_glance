@@ -79,6 +79,7 @@ def test_last_synced(seeded_db_path):
     ("top10pct_count", "A1"),     # 4
     ("works_count_3y", "A1"),     # 10
     ("fractional_citations", "A2"),  # 300.0
+    ("kaken_total_amount", "A1"),  # 75,000,000
 ])
 def test_ranking_all_sort_keys(seeded_db_path, sort_key, expected_first):
     with _session(seeded_db_path) as s:
