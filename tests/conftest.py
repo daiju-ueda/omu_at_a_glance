@@ -34,6 +34,9 @@ def seeded_db_path(tmp_path):
             Researcher(openalex_id="A3", display_name="Ichiro Tanaka",
                        orcid=None, h_index=5, works_count=8,
                        raw_json="{}", updated_at=""),
+            Researcher(openalex_id="A4", display_name="Jiro Sato",
+                       name_ja="佐藤次郎", orcid=None, h_index=1, works_count=2,
+                       raw_json="{}", updated_at=""),
         ])
         s.add_all([
             ResearcherMetrics(researcher_id="A1", works_count_3y=10,

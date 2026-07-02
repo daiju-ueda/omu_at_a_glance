@@ -54,6 +54,9 @@ def test_search(seeded_db_path):
         rows = search(s, "yama")
         assert [r.Researcher.openalex_id for r in rows] == ["A1"]
         assert search(s, "zzz") == []
+        rows = search(s, "佐藤")
+        assert [r.Researcher.openalex_id for r in rows] == ["A4"]
+        assert rows[0].ResearcherMetrics is None  # metrics無しでもouterjoinで出る
 
 
 def test_last_synced(seeded_db_path):
