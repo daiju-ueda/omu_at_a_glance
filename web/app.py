@@ -164,6 +164,8 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             rid = raw_id.strip()
             if rid and rid not in id_list:
                 id_list.append(rid)
+            if len(id_list) >= 50:
+                break
         with Session(engine) as session:
             synced = queries.last_synced(session)
             entries = queries.compare(session, id_list)[:4]

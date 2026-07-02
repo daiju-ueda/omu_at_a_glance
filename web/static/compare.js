@@ -27,4 +27,6 @@
     var ids = selected().map(function (el) { return el.dataset.id; });
     window.location.href = "/compare?ids=" + ids.join(",");
   });
+
+  update();
 })();

@@ -159,3 +159,15 @@ def test_compare_cap_applies_after_unknown_filter(client):
     # 不明ID除去後に4件へ切り詰めるので、A4（有効な4人目）は残る
     assert "佐藤次郎" in body
     assert "Ichiro Tanaka" in body
+
+
+def test_compare_tie_highlights_both(client):
+    # A2とA3のfirst_author_countは両者2で同値。同値タイはbestなしを検証する。
+    # conftest でA2=2, A3=2 → 全員同値なのでbestなし
+    import re
+    body = client.get("/compare?ids=A2,A3").text
+    # 筆頭著者数の行を抽出し、その行に best クラスがないことを確認:
+    match = re.search(r'<th>筆頭著者数</th>.*?</tr>', body, re.DOTALL)
+    assert match is not None, "筆頭著者数行が見つかりません"
+    row = match.group(0)
+    assert 'class="best"' not in row, f"筆頭著者数行に best クラスが含まれています: {row}"
