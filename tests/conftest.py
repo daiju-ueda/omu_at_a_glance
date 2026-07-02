@@ -43,6 +43,9 @@ def seeded_db_path(tmp_path):
             Researcher(openalex_id="A4", display_name="Jiro Sato",
                        name_ja="佐藤次郎", orcid=None, h_index=1, works_count=2,
                        raw_json="{}", updated_at=""),
+            Researcher(openalex_id="A1b", display_name="Taro Yamada",
+                       orcid=None, h_index=2, works_count=3,
+                       canonical_id="A1", raw_json="{}", updated_at=""),
         ])
         s.add_all([
             ResearcherMetrics(researcher_id="A1", works_count_3y=10,
@@ -94,6 +97,8 @@ def seeded_db_path(tmp_path):
             Authorship(work_id="W2", author_id="A1", author_position="first",
                        is_corresponding=True),
             Authorship(work_id="W3", author_id="A1", author_position="middle",
+                       is_corresponding=False),
+            Authorship(work_id="W3", author_id="A1b", author_position="first",
                        is_corresponding=False),
             Authorship(work_id="W1", author_id="A2", author_position="last",
                        is_corresponding=False),

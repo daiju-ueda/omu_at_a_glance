@@ -51,13 +51,24 @@ def researcher_detail(session, openalex_id, today=None):
         return None
     metrics = session.get(ResearcherMetrics, openalex_id)
     start = window_start(today or datetime.date.today())
-    works = session.execute(
+    # Fetch works for both canonical and aliases, deduplicating by work_id
+    author_ids = [openalex_id] + list(session.scalars(
+        select(Researcher.openalex_id)
+        .where(Researcher.canonical_id == openalex_id)))
+    raw_works = session.execute(
         select(Work, Authorship)
         .join(Authorship, Authorship.work_id == Work.openalex_id)
-        .where(Authorship.author_id == openalex_id,
+        .where(Authorship.author_id.in_(author_ids),
                Work.publication_date >= start)
         .order_by(Work.cited_by_count.desc(), Work.openalex_id)
     ).all()
+    seen: set[str] = set()
+    works = []
+    for row in raw_works:
+        if row.Work.openalex_id in seen:
+            continue
+        seen.add(row.Work.openalex_id)
+        works.append(row)
     return researcher, metrics, works
 
 
@@ -67,7 +78,8 @@ def search(session, q, limit=200):
         select(Researcher, ResearcherMetrics)
         .outerjoin(ResearcherMetrics,
                    ResearcherMetrics.researcher_id == Researcher.openalex_id)
-        .where(or_(Researcher.display_name.ilike(pattern),
+        .where(Researcher.canonical_id.is_(None),
+               or_(Researcher.display_name.ilike(pattern),
                    Researcher.name_ja.ilike(pattern)))
         .order_by(ResearcherMetrics.fwci_total.desc(), Researcher.openalex_id)
         .limit(limit)
