@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}部局間比較 - OMU研究者比較{% endblock %}
+{% block title %}部局間比較 - OMU at a glance{% endblock %}
 {% block content %}
 <h2>部局間比較</h2>
 <p class="notice">公式総覧と名寄せできた研究者のみの集計（全{{ total_count }}人中 {{ matched }}人）。規模の異なる部局は「人あたり」列で比較してください。名寄せ{{ min_members }}人未満の部局は参考表示（順位対象外）。</p>
@@ -13,14 +13,14 @@
 {% for s in ranked %}
 <tr>
   <td><a href="/?department={{ s.department|urlencode }}">{{ s.department }}</a></td>
-  <td>{{ s.members }}</td>
-  <td>{{ s.works }}</td>
-  <td>{{ "%.2f"|format(s.works_per_capita) }}</td>
-  <td>{{ "{:,}".format(s.citations) }}</td>
-  <td>{{ "%.2f"|format(s.fwci_total) }}</td>
-  <td><strong>{{ "%.2f"|format(s.fwci_per_capita) }}</strong></td>
-  <td>{{ s.top10 }}</td>
-  <td>{{ s.kaken_amount|man }}</td>
+  <td class="num">{{ s.members }}</td>
+  <td class="num">{{ s.works }}</td>
+  <td class="num">{{ "%.2f"|format(s.works_per_capita) }}</td>
+  <td class="num">{{ "{:,}".format(s.citations) }}</td>
+  <td class="num">{{ "%.2f"|format(s.fwci_total) }}</td>
+  <td class="num"><strong class="accent">{{ "%.2f"|format(s.fwci_per_capita) }}</strong></td>
+  <td class="num">{{ s.top10 }}</td>
+  <td class="num">{{ s.kaken_amount|man }}</td>
 </tr>
 {% endfor %}
 </tbody>
@@ -37,14 +37,14 @@
 {% for s in small %}
 <tr>
   <td><a href="/?department={{ s.department|urlencode }}">{{ s.department }}</a></td>
-  <td>{{ s.members }}</td>
-  <td>{{ s.works }}</td>
-  <td>{{ "%.2f"|format(s.works_per_capita) }}</td>
-  <td>{{ "{:,}".format(s.citations) }}</td>
-  <td>{{ "%.2f"|format(s.fwci_total) }}</td>
-  <td><strong>{{ "%.2f"|format(s.fwci_per_capita) }}</strong></td>
-  <td>{{ s.top10 }}</td>
-  <td>{{ s.kaken_amount|man }}</td>
+  <td class="num">{{ s.members }}</td>
+  <td class="num">{{ s.works }}</td>
+  <td class="num">{{ "%.2f"|format(s.works_per_capita) }}</td>
+  <td class="num">{{ "{:,}".format(s.citations) }}</td>
+  <td class="num">{{ "%.2f"|format(s.fwci_total) }}</td>
+  <td class="num"><strong class="accent">{{ "%.2f"|format(s.fwci_per_capita) }}</strong></td>
+  <td class="num">{{ s.top10 }}</td>
+  <td class="num">{{ s.kaken_amount|man }}</td>
 </tr>
 {% endfor %}
 </tbody>

@@ -1,39 +1,65 @@
 {% extends "base.html" %}
-{% block title %}{{ r.name_ja or r.display_name }} - OMU研究者比較{% endblock %}
+{% block title %}{{ r.name_ja or r.display_name }} - OMU at a glance{% endblock %}
 {% block content %}
-<h2>{{ r.name_ja or r.display_name }}</h2>
-{% if r.department %}<p class="affil">{{ r.department }}{% if r.position %}・{{ r.position }}{% endif %}</p>{% endif %}
-<p class="links">
-  <a href="https://openalex.org/{{ r.openalex_id }}" target="_blank">OpenAlex</a>
-  {% if r.orcid %}<a href="https://orcid.org/{{ r.orcid }}" target="_blank">ORCID</a>{% endif %}
-</p>
+<div class="identity">
+  <h2>{{ r.name_ja or r.display_name }}</h2>
+  {% if r.name_ja %}<p class="alt-name">{{ r.display_name }}</p>{% endif %}
+  {% if r.department %}<p class="affil">{{ r.department }}{% if r.position %}・{{ r.position }}{% endif %}</p>{% endif %}
+  <p class="links">
+    <a class="chip" href="https://openalex.org/{{ r.openalex_id }}" target="_blank">OpenAlex</a>
+    {% if r.orcid %}<a class="chip" href="https://orcid.org/{{ r.orcid }}" target="_blank">ORCID</a>{% endif %}
+  </p>
+</div>
 {% if not m %}
 <p>メトリクス未計算です。</p>
 {% endif %}
+<section class="metric-section">
+<h3>インパクト</h3>
 <dl class="metrics">
   {% if m %}
-  <div><dt>3年論文数</dt><dd>{{ m.works_count_3y }}{% if ranks.works_count_3y %}<span class="rank">学内{{ ranks.works_count_3y[0] }}位</span>{% endif %}</dd></div>
-  <div><dt>総被引用数</dt><dd>{{ m.total_citations }}{% if ranks.total_citations %}<span class="rank">学内{{ ranks.total_citations[0] }}位</span>{% endif %}</dd></div>
-  <div><dt>FWCI合計</dt><dd>{{ m.fwci_total|fmt }}{% if ranks.fwci_total %}<span class="rank">学内{{ ranks.fwci_total[0] }}位</span>{% endif %}</dd></div>
+  <div class="stat-hero"><dt>FWCI合計</dt><dd>{{ m.fwci_total|fmt }}{% if ranks.fwci_total %}<span class="rank">学内{{ ranks.fwci_total[0] }}位</span>{% endif %}</dd></div>
   <div><dt>FWCI平均</dt><dd>{{ m.fwci_mean|fmt }}{% if ranks.fwci_mean %}<span class="rank">学内{{ ranks.fwci_mean[0] }}位</span>{% endif %}</dd></div>
   <div><dt>FWCI中央値</dt><dd>{{ m.fwci_median|fmt }}</dd></div>
+  <div class="stat-hero"><dt>総被引用数</dt><dd>{{ m.total_citations }}{% if ranks.total_citations %}<span class="rank">学内{{ ranks.total_citations[0] }}位</span>{% endif %}</dd></div>
+  <div><dt>被引用(補正)</dt><dd>{{ m.fractional_citations|fmt }}{% if ranks.fractional_citations %}<span class="rank">学内{{ ranks.fractional_citations[0] }}位</span>{% endif %}</dd></div>
   <div><dt>top10%論文</dt><dd>{{ m.top10pct_count }}{% if ranks.top10pct_count %}<span class="rank">学内{{ ranks.top10pct_count[0] }}位</span>{% endif %}</dd></div>
+  <div><dt>top1%論文</dt><dd>{{ m.top1pct_count }}{% if ranks.top1pct_count %}<span class="rank">学内{{ ranks.top1pct_count[0] }}位</span>{% endif %}</dd></div>
+  {% endif %}
+</dl>
+</section>
+<section class="metric-section">
+<h3>生産性</h3>
+<dl class="metrics">
+  {% if m %}
+  <div class="stat-hero"><dt>3年論文数</dt><dd>{{ m.works_count_3y }}{% if ranks.works_count_3y %}<span class="rank">学内{{ ranks.works_count_3y[0] }}位</span>{% endif %}</dd></div>
+  <div><dt>論文数(補正)</dt><dd>{{ m.fractional_works|fmt }}</dd></div>
   <div><dt>筆頭著者</dt><dd>{{ m.first_author_count }}</dd></div>
   <div><dt>責任著者</dt><dd>{{ m.corresponding_count }}</dd></div>
-  <div><dt>top1%論文</dt><dd>{{ m.top1pct_count }}{% if ranks.top1pct_count %}<span class="rank">学内{{ ranks.top1pct_count[0] }}位</span>{% endif %}</dd></div>
-  <div><dt>被引用(補正)</dt><dd>{{ m.fractional_citations|fmt }}{% if ranks.fractional_citations %}<span class="rank">学内{{ ranks.fractional_citations[0] }}位</span>{% endif %}</dd></div>
-  <div><dt>論文数(補正)</dt><dd>{{ m.fractional_works|fmt }}</dd></div>
   <div><dt>平均著者数</dt><dd>{{ m.avg_authors|fmt }}</dd></div>
   <div><dt>ユニーク共著者</dt><dd>{{ m.unique_coauthors }}</dd></div>
+  {% endif %}
+</dl>
+</section>
+<section class="metric-section">
+<h3>連携・資金</h3>
+<dl class="metrics">
+  {% if m %}
   <div><dt>国際共著率</dt><dd>{{ m.intl_collab_rate|pct }}</dd></div>
   <div><dt>産学連携率</dt><dd>{{ m.corp_collab_rate|pct }}</dd></div>
   <div><dt>OA率</dt><dd>{{ m.oa_rate|pct }}</dd></div>
+  <div><dt>科研費（代表）</dt><dd>{{ m.kaken_pi_count }}</dd></div>
+  <div><dt>科研費（分担）</dt><dd>{{ m.kaken_copi_count }}</dd></div>
+  <div class="stat-hero"><dt>科研費配分総額</dt><dd>{{ m.kaken_total_amount|man }}{% if ranks.kaken_total_amount %}<span class="rank">学内{{ ranks.kaken_total_amount[0] }}位</span>{% endif %}</dd></div>
+  {% endif %}
+</dl>
+</section>
+<section class="metric-section">
+<h3>研究者指標・実績（全期間）</h3>
+<dl class="metrics">
+  {% if m %}
   <div><dt>preprint</dt><dd>{{ m.preprint_count }}</dd></div>
   <div><dt>データ/SW</dt><dd>{{ m.dataset_software_count }}</dd></div>
   <div><dt>主分野</dt><dd>{{ m.top_subfield or "–" }}</dd></div>
-  <div><dt>科研費（代表）</dt><dd>{{ m.kaken_pi_count }}</dd></div>
-  <div><dt>科研費（分担）</dt><dd>{{ m.kaken_copi_count }}</dd></div>
-  <div><dt>科研費配分総額</dt><dd>{{ m.kaken_total_amount|man }}{% if ranks.kaken_total_amount %}<span class="rank">学内{{ ranks.kaken_total_amount[0] }}位</span>{% endif %}</dd></div>
   <div><dt>受賞（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.awards_count }}{% else %}–{% endif %}</dd></div>
   <div><dt>著書（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.books_count }}{% else %}–{% endif %}</dd></div>
   <div><dt>講演（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.presentations_count }}{% else %}–{% endif %}</dd></div>
@@ -43,6 +69,7 @@
   <div><dt>i10指数（全期間）</dt><dd>{{ r.i10_index }}</dd></div>
   <div><dt>2年平均被引用</dt><dd>{{ r.two_yr_mean_citedness|fmt }}</dd></div>
 </dl>
+</section>
 {% if awards %}
 <h3>受賞歴（公式総覧・全期間）</h3>
 <ul class="awards">
@@ -66,8 +93,8 @@
   </td>
   <td>{{ w.venue or "–" }}</td>
   <td>{{ w.publication_date }}</td>
-  <td>{{ w.cited_by_count }}</td>
-  <td>{{ w.fwci|fmt }}</td>
+  <td class="num">{{ w.cited_by_count }}</td>
+  <td class="num">{{ w.fwci|fmt }}</td>
   <td>{% if a.author_position == 'first' %}筆頭{% endif %}{% if a.is_corresponding %}{% if a.author_position == 'first' %}・{% endif %}責任{% endif %}</td>
 </tr>
 {% endfor %}

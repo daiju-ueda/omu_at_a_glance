@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% macro numcell(key, rid, text, sub=False) -%}
+<td class="num{% if sub %} sub{% endif %}{% if sort == key %} sorted{% endif %}">{% if sort == key and bars.get(rid) %}<span class="cellbar" style="--w: {{ bars[rid] }}%"></span>{% endif %}{{ text }}</td>
+{%- endmacro %}
 {% block content %}
 <h2>ランキング <span class="total">{% if department %}{{ department }}: {% endif %}全{{ total_all }}人中 {{ total }}人を表示</span></h2>
-<form method="get" class="controls">
+<form method="get" class="toolbar">
   <input type="hidden" name="sort" value="{{ sort }}">
   <label>部局:
     <select name="department">
@@ -15,22 +18,31 @@
   <button>絞り込み</button>
 </form>
 <table>
-<thead><tr>
+<thead>
+<tr class="groups-row">
+  <th colspan="2"></th><th></th>
+  <th>生産性</th>
+  <th colspan="7">インパクト</th>
+  <th colspan="2">著者性</th>
+  <th>資金</th>
+</tr>
+<tr>
   <th></th>
   <th>#</th>
   <th>氏名</th>
-  <th><a href="/?sort=works_count_3y&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=total_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fractional_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">被引用(補正){% if sort == 'fractional_citations' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fwci_total&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI合計{% if sort == 'fwci_total' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fwci_mean&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'works_count_3y' %} class="sorted"{% endif %}><a href="/?sort=works_count_3y&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'total_citations' %} class="sorted"{% endif %}><a href="/?sort=total_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'fractional_citations' %} class="sorted"{% endif %}><a href="/?sort=fractional_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">被引用(補正){% if sort == 'fractional_citations' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'fwci_total' %} class="sorted"{% endif %}><a href="/?sort=fwci_total&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI合計{% if sort == 'fwci_total' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'fwci_mean' %} class="sorted"{% endif %}><a href="/?sort=fwci_mean&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
   <th>FWCI中央値</th>
-  <th><a href="/?sort=top10pct_count&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
+  <th{% if sort == 'top10pct_count' %} class="sorted"{% endif %}><a href="/?sort=top10pct_count&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
   <th>top1%</th>
   <th>筆頭</th>
   <th>責任</th>
-  <th><a href="/?sort=kaken_total_amount&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">科研費総額{% if sort == 'kaken_total_amount' %} ▼{% endif %}</a></th>
-</tr></thead>
+  <th{% if sort == 'kaken_total_amount' %} class="sorted"{% endif %}><a href="/?sort=kaken_total_amount&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">科研費総額{% if sort == 'kaken_total_amount' %} ▼{% endif %}</a></th>
+</tr>
+</thead>
 <tbody>
 {% for row in rows %}
 {% set r = row.Researcher %}{% set m = row.ResearcherMetrics %}
@@ -38,17 +50,17 @@
   <td><input type="checkbox" class="cmp" data-id="{{ r.openalex_id }}" data-name="{{ r.name_ja or r.display_name }}" aria-label="比較に追加: {{ r.name_ja or r.display_name }}"></td>
   <td>{{ (page - 1) * page_size + loop.index }}</td>
   <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
-  <td>{{ m.works_count_3y }}</td>
-  <td>{{ m.total_citations }}</td>
-  <td>{{ m.fractional_citations|fmt }}</td>
-  <td>{{ m.fwci_total|fmt }}</td>
-  <td>{{ m.fwci_mean|fmt }}</td>
-  <td>{{ m.fwci_median|fmt }}</td>
-  <td>{{ m.top10pct_count }}</td>
-  <td>{{ m.top1pct_count }}</td>
-  <td>{{ m.first_author_count }}</td>
-  <td>{{ m.corresponding_count }}</td>
-  <td>{{ m.kaken_total_amount|man }}</td>
+  {{ numcell('works_count_3y', r.openalex_id, "{:,}".format(m.works_count_3y)) }}
+  {{ numcell('total_citations', r.openalex_id, "{:,}".format(m.total_citations)) }}
+  {{ numcell('fractional_citations', r.openalex_id, m.fractional_citations|fmt) }}
+  {{ numcell('fwci_total', r.openalex_id, m.fwci_total|fmt) }}
+  {{ numcell('fwci_mean', r.openalex_id, m.fwci_mean|fmt) }}
+  <td class="num sub">{{ m.fwci_median|fmt }}</td>
+  {{ numcell('top10pct_count', r.openalex_id, "{:,}".format(m.top10pct_count)) }}
+  <td class="num sub">{{ "{:,}".format(m.top1pct_count) }}</td>
+  <td class="num sub">{{ "{:,}".format(m.first_author_count) }}</td>
+  <td class="num sub">{{ "{:,}".format(m.corresponding_count) }}</td>
+  {{ numcell('kaken_total_amount', r.openalex_id, m.kaken_total_amount|man) }}
 </tr>
 {% endfor %}
 </tbody>

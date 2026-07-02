@@ -254,3 +254,59 @@ def test_compare_achievements_group(client):
     assert "<td>–</td>" in achievements_html
     assert 'class="best"' not in achievements_html
     assert "受賞・著書・講演・委員歴は公式総覧収録分" in body
+
+
+def test_ranking_sorted_column_bars(client):
+    body = client.get("/?min_works=0").text  # 既定sort=fwci_total
+    assert 'class="num sorted"' in body
+    assert "--w:" in body                      # 分布バー
+    # 最大値(A1=35.0)の行は100%
+    assert "--w: 100%" in body
+    body2 = client.get("/?sort=total_citations&min_works=0").text
+    assert 'class="num sorted"' in body2
+
+
+def test_ranking_group_header_and_toolbar(client):
+    body = client.get("/").text
+    assert 'class="groups-row"' in body
+    assert "生産性" in body and "インパクト" in body and "資金" in body
+    assert 'class="toolbar"' in body
+
+
+def test_bar_widths_pure():
+    from web.app import _bar_widths
+
+    class R:
+        def __init__(self, i):
+            self.openalex_id = i
+
+    class M:
+        def __init__(self, v):
+            self.fwci_total = v
+
+    class Row:
+        def __init__(self, i, v):
+            self.Researcher = R(i)
+            self.ResearcherMetrics = M(v)
+
+    rows = [Row("A", 200.0), Row("B", 1.0), Row("C", 0), Row("D", None)]
+    bars = _bar_widths(rows, "fwci_total")
+    assert bars["A"] == 100
+    assert bars["B"] == 2        # 最小2%
+    assert "C" not in bars and "D" not in bars
+    assert _bar_widths([], "fwci_total") == {}
+
+
+def test_detail_identity_and_sections(client):
+    body = client.get("/researchers/A1").text
+    assert 'class="identity"' in body
+    for heading in ("インパクト", "生産性", "連携・資金", "研究者指標・実績（全期間）"):
+        assert heading in body
+    assert 'class="metric-section"' in body
+    assert 'class="chip"' in body   # OpenAlex/ORCIDリンク
+
+
+def test_footer_is_list(client):
+    body = client.get("/").text
+    assert "データについて" in body
+    assert body.count("<li>") >= 4  # 注記の文分割
