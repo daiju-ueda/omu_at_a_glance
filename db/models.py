@@ -85,6 +85,10 @@ class ResearcherMetrics(Base):
     kaken_pi_count: Mapped[int] = mapped_column(Integer, default=0)
     kaken_copi_count: Mapped[int] = mapped_column(Integer, default=0)
     kaken_total_amount: Mapped[int] = mapped_column(Integer, default=0)
+    awards_count: Mapped[int] = mapped_column(Integer, default=0)
+    books_count: Mapped[int] = mapped_column(Integer, default=0)
+    presentations_count: Mapped[int] = mapped_column(Integer, default=0)
+    committee_count: Mapped[int] = mapped_column(Integer, default=0)
     computed_at: Mapped[str] = mapped_column(String)
 
 
@@ -130,6 +134,18 @@ class Roster(Base):
     keywords: Mapped[str | None] = mapped_column(Text, nullable=True)
     matched_researcher_id: Mapped[str | None] = mapped_column(
         String, nullable=True, index=True)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
+class RosterAchievement(Base):
+    __tablename__ = "roster_achievements"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True,
+                                    autoincrement=True)
+    profile_id: Mapped[str] = mapped_column(String, index=True)
+    category: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(Text)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[str] = mapped_column(String)
 
 

@@ -23,6 +23,13 @@ DIVISION_HREF = re.compile(
     r"^/search\?m=affiliation&l=ja&a2=(\d+)&s=1&o=affiliation$")
 TOTAL_RE = re.compile(r"([0-9,]+)\s*件中")
 PROFILE_RE = re.compile(r"/html/(\d+)_ja\.html")
+ACHIEVEMENT_SECTIONS = {
+    "jusho": "award",
+    "chosho": "book",
+    "knkyu_prsn": "presentation",
+    "gkkai_iinkai": "committee",
+}
+YEAR_RE = re.compile(r"(19|20)\d{2}")
 
 
 class RosterClient:
@@ -145,6 +152,38 @@ def sync_roster(session, client, today: datetime.date) -> int:
     session.commit()
     logger.info("roster sync done: %d人 / %d部局", len(rows), len(divisions))
     return len(rows)
+
+
+def parse_profile_achievements(html: str) -> list[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    entries: list[dict] = []
+    for section_id, category in ACHIEVEMENT_SECTIONS.items():
+        container = soup.find("div", id=section_id)
+        if container is None:
+            continue
+        for li in container.find_all("li"):
+            title_el = li.find("p", class_="title")
+            if title_el is None:
+                continue
+            title = title_el.get_text(strip=True)
+            if not title:
+                continue
+            detail = None
+            for p in li.find_all("p", class_="contents"):
+                if p.find_parent(class_="gaiyo-detail") is not None:
+                    continue
+                text = p.get_text(" ", strip=True)
+                if text:
+                    detail = text
+                    break
+            year_m = YEAR_RE.search(detail or "")
+            entries.append({
+                "category": category,
+                "title": title,
+                "year": int(year_m.group(0)) if year_m else None,
+                "detail": detail,
+            })
+    return entries
 
 
 def match_roster(session) -> int:
