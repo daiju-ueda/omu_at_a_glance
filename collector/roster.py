@@ -1,9 +1,15 @@
+import datetime
 import logging
 import re
 import time
+from collections import defaultdict
 
 import httpx
 from bs4 import BeautifulSoup
+from sqlalchemy import delete, select
+
+from collector.nameutil import kana_part_variants, normalize_name
+from db.models import Researcher, Roster, SyncState
 
 logger = logging.getLogger(__name__)
 
@@ -97,3 +103,93 @@ def parse_list_page(html: str) -> tuple[list[dict], int]:
             "keywords": kw_el.get_text(strip=True) if kw_el else None,
         })
     return members, total
+
+
+def sync_roster(session, client, today: datetime.date) -> int:
+    home = client.fetch("/")
+    divisions = parse_divisions(home)
+    if not divisions:
+        logger.warning("roster: 部局リンクが見つからないためスキップ（既存データ保持）")
+        return 0
+    rows: dict[str, dict] = {}
+    for code, label in divisions:
+        start = 1
+        while True:
+            html = client.fetch("/search", params={
+                "m": "affiliation", "l": "ja", "a2": code,
+                "s": start, "o": "affiliation", "pp": PAGE_SIZE})
+            members, total = parse_list_page(html)
+            for m in members:
+                if m["profile_id"] not in rows:
+                    rows[m["profile_id"]] = {**m, "division": label}
+            start += PAGE_SIZE
+            if start > total or not members:
+                break
+    if not rows:
+        logger.warning("roster: 0件のため洗い替えをスキップ（既存データ保持）")
+        return 0
+    session.execute(delete(Roster))
+    for row in rows.values():
+        session.add(Roster(**row, updated_at=today.isoformat()))
+    session.merge(SyncState(source="roster", cursor=None,
+                            last_synced_at=today.isoformat()))
+    session.commit()
+    logger.info("roster sync done: %d人 / %d部局", len(rows), len(divisions))
+    return len(rows)
+
+
+def match_roster(session) -> int:
+    name_index: dict[str, set[str]] = defaultdict(set)
+    kanji_index: dict[str, set[str]] = defaultdict(set)
+    for rid, display_name, name_ja in session.execute(
+            select(Researcher.openalex_id, Researcher.display_name,
+                   Researcher.name_ja)):
+        name_index[normalize_name(display_name)].add(rid)
+        if name_ja:
+            kanji_index[name_ja].add(rid)
+
+    entries = list(session.scalars(select(Roster)))
+    proposals: dict[str, list] = defaultdict(list)  # rid -> [Roster, ...]
+    for entry in entries:
+        entry.matched_researcher_id = None
+        candidates: set[str] = set(kanji_index.get(entry.name_kanji, set()))
+        if entry.name_kana:
+            parts = entry.name_kana.replace("　", " ").split()
+            if len(parts) == 2:
+                for fam in kana_part_variants(parts[0]):
+                    for giv in kana_part_variants(parts[1]):
+                        candidates |= name_index.get(
+                            normalize_name(f"{giv} {fam}"), set())
+                        candidates |= name_index.get(
+                            normalize_name(f"{fam} {giv}"), set())
+        if len(candidates) == 1:
+            proposals[candidates.pop()].append(entry)
+
+    matched = 0
+    matched_rids: set[str] = set()
+    for rid, claimants in proposals.items():
+        if len(claimants) != 1:
+            continue  # 学内同姓同名の衝突 → 全て未マッチのまま
+        entry = claimants[0]
+        researcher = session.get(Researcher, rid)
+        if researcher is None:
+            continue
+        entry.matched_researcher_id = rid
+        researcher.name_ja = entry.name_kanji
+        researcher.department = entry.division
+        researcher.position = entry.position
+        researcher.is_official_roster = True
+        matched_rids.add(rid)
+        matched += 1
+
+    # 以前rosterマッチだったが今回外れた研究者のクリア（name_jaは残す）
+    for researcher in session.scalars(
+            select(Researcher).where(
+                Researcher.is_official_roster.is_(True))):
+        if researcher.openalex_id not in matched_rids:
+            researcher.department = None
+            researcher.position = None
+            researcher.is_official_roster = False
+    session.commit()
+    logger.info("roster名寄せ: %d人を確定", matched)
+    return matched

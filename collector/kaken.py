@@ -239,21 +239,29 @@ def match_members(session) -> int:
                 rid, sorted(kanji_variants))
             continue
         for member in members:
+            # matched_researcher_id（grant紐付け）はガードの前に設定する:
+            # 公式総覧優先の対象はname_jaの上書きのみで、grant⇔researcherの
+            # マッチ自体は公式総覧の有無に関わらず有効にしたい
             member.matched_researcher_id = rid
             matched += 1
         name_ja_by_rid[rid] = next(iter(kanji_variants))
 
     # name_ja の全件再計算: フェーズ2の公式名簿が無い現状ではKAKENが唯一のソースなので、
-    # 今回マッチしなかった研究者のname_jaは（過去に付いていても）クリアするのが正しい
+    # 今回マッチしなかった研究者のname_jaは（過去に付いていても）クリアするのが正しい。
+    # ただし公式総覧（is_official_roster=True）で確定した研究者のname_jaはKAKENより
+    # 信頼できるため、KAKEN側では一切触らない
     for researcher in session.scalars(
-            select(Researcher).where(Researcher.name_ja.is_not(None))):
+            select(Researcher).where(
+                Researcher.name_ja.is_not(None),
+                Researcher.is_official_roster.is_(False))):
         if researcher.openalex_id not in name_ja_by_rid:
             researcher.name_ja = None
 
     for rid, name_ja in name_ja_by_rid.items():
         researcher = session.get(Researcher, rid)
-        if researcher is not None:
-            researcher.name_ja = name_ja
+        if researcher is None or researcher.is_official_roster:
+            continue
+        researcher.name_ja = name_ja
     session.commit()
     logger.info("KAKEN名寄せ: %d人を一意マッチ", matched)
     return matched
