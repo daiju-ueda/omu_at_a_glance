@@ -236,6 +236,13 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             "min_members": queries.MIN_DEPT_MEMBERS,
         })
 
+    @app.get("/about", response_class=HTMLResponse)
+    def about_page(request: Request):
+        with Session(engine) as session:
+            synced = queries.last_synced(session)
+        return templates.TemplateResponse(request, "about.html",
+                                          {"synced": synced})
+
     return app
 
 
