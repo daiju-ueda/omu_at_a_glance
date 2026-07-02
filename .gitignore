@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
 .venv/
-db/researchers.db
+db/researchers.db*
+logs/*.log
 .pytest_cache/
