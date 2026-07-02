@@ -216,7 +216,8 @@ def parse_profile_achievements(html: str) -> list[dict]:
 def _entry_key(pid: str, entry: dict) -> tuple:
     return (pid, entry["category"],
             unicodedata.normalize("NFKC", entry["title"]),
-            unicodedata.normalize("NFKC", entry.get("detail") or ""))
+            unicodedata.normalize("NFKC", entry.get("detail") or ""),
+            entry.get("year"))
 
 
 def sync_profiles(session, client, today: datetime.date) -> int:

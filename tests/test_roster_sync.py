@@ -282,3 +282,26 @@ def test_sync_profiles_zero_entries_keeps_existing(caplog):
         with caplog.at_level("WARNING"):
             assert sync_profiles(s, client, today=TODAY) == 0
         assert s.scalars(select(RosterAchievement)).first().title == "既存の賞"
+
+
+PROFILE_SAME_TITLE_DIFFERENT_YEARS = """<div id="jusho"><ul>
+<li><p class="title">ベスト賞</p><p class="contents">2020 機関</p></li>
+<li><p class="title">ベスト賞</p><p class="contents">2021 機関</p></li>
+</ul></div>"""
+
+
+def test_sync_profiles_keeps_different_years():
+    # 同名実績でも年が異なれば両方保存する
+    # （年を含まないキーでの重複排除は避ける）
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Roster(profile_id="111", name_kanji="山田 太郎", division="D",
+                     updated_at=""))
+        s.commit()
+        client = FakeProfileClient({"111": PROFILE_SAME_TITLE_DIFFERENT_YEARS})
+        n = sync_profiles(s, client, today=TODAY)
+        assert n == 2
+        rows = list(s.scalars(select(RosterAchievement)))
+        assert len(rows) == 2
+        years = sorted([r.year for r in rows])
+        assert years == [2020, 2021]
