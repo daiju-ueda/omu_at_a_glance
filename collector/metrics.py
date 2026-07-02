@@ -5,7 +5,7 @@ import statistics
 from sqlalchemy import delete, select
 
 from collector.sync import window_start
-from db.models import Authorship, Researcher, ResearcherMetrics, Work
+from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Work
 
 
 def _rate(count, total):
@@ -40,6 +40,15 @@ def compute_metrics(session, today: datetime.date) -> int:
     by_author: dict[str, list] = {}
     for row in rows:
         by_author.setdefault(row.author_id, []).append(row)
+
+    kaken_by_author: dict[str, list] = {}
+    for row in session.execute(
+        select(GrantMember.matched_researcher_id, GrantMember.role,
+               Grant.total_amount)
+        .join(Grant, Grant.award_id == GrantMember.award_id)
+        .where(GrantMember.matched_researcher_id.is_not(None))
+    ):
+        kaken_by_author.setdefault(row.matched_researcher_id, []).append(row)
 
     n = 0
     for rid in session.scalars(select(Researcher.openalex_id)):
@@ -83,6 +92,15 @@ def compute_metrics(session, today: datetime.date) -> int:
                 1 for r in items if r.type in ("dataset", "software")),
             unique_coauthors=len(partners),
             top_subfield=top_subfield,
+            kaken_pi_count=sum(
+                1 for k in kaken_by_author.get(rid, [])
+                if k.role == "principal"),
+            kaken_copi_count=sum(
+                1 for k in kaken_by_author.get(rid, [])
+                if k.role == "co_investigator"),
+            kaken_total_amount=sum(
+                k.total_amount for k in kaken_by_author.get(rid, [])
+                if k.role == "principal"),
             computed_at=today.isoformat(),
         ))
         n += 1

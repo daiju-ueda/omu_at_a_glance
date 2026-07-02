@@ -19,6 +19,7 @@
   <th>top1%</th>
   <th>筆頭</th>
   <th>責任</th>
+  <th><a href="/?sort=kaken_total_amount&min_works={{ min_works }}">科研費総額{% if sort == 'kaken_total_amount' %} ▼{% endif %}</a></th>
 </tr></thead>
 <tbody>
 {% for row in rows %}
@@ -35,6 +36,7 @@
   <td>{{ m.top1pct_count }}</td>
   <td>{{ m.first_author_count }}</td>
   <td>{{ m.corresponding_count }}</td>
+  <td>{{ m.kaken_total_amount|man }}</td>
 </tr>
 {% endfor %}
 </tbody>

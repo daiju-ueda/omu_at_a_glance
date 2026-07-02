@@ -14,6 +14,7 @@ SORT_COLUMNS = {
     "top10pct_count": ResearcherMetrics.top10pct_count,
     "works_count_3y": ResearcherMetrics.works_count_3y,
     "fractional_citations": ResearcherMetrics.fractional_citations,
+    "kaken_total_amount": ResearcherMetrics.kaken_total_amount,
 }
 
 

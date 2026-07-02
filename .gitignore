@@ -4,3 +4,4 @@ __pycache__/
 db/researchers.db*
 logs/*.log
 .pytest_cache/
+.env

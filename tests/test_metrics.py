@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy.orm import Session
 
 from collector.metrics import compute_metrics
-from db.models import Authorship, Researcher, ResearcherMetrics, Work, get_engine
+from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Work, get_engine
 
 TODAY = datetime.date(2026, 7, 2)
 
@@ -56,6 +56,23 @@ def test_compute_metrics():
             _auth("W5", "A5"),
             _auth("W6", "A5"),
         ])
+        s.add_all([
+            Grant(award_id="G1", title="t", total_amount=10_000_000,
+                  raw_json="{}", updated_at=""),
+            Grant(award_id="G2", title="t", total_amount=3_000_000,
+                  raw_json="{}", updated_at=""),
+        ])
+        s.add_all([
+            GrantMember(award_id="G1", erad_id="E1", name_kanji="x",
+                        name_kana=None, role="principal",
+                        matched_researcher_id="A1"),
+            GrantMember(award_id="G2", erad_id="E2", name_kanji="x",
+                        name_kana=None, role="co_investigator",
+                        matched_researcher_id="A1"),
+            GrantMember(award_id="G2", erad_id="E3", name_kanji="y",
+                        name_kana=None, role="principal",
+                        matched_researcher_id=None),  # 未マッチは集計外
+        ])
         s.commit()
 
         n = compute_metrics(s, TODAY)
@@ -83,6 +100,9 @@ def test_compute_metrics():
         assert m1.dataset_software_count == 1       # W4
         assert m1.unique_coauthors == 1             # A9のみ（本人除外）
         assert m1.top_subfield == "ML"
+        assert m1.kaken_pi_count == 1
+        assert m1.kaken_copi_count == 1
+        assert m1.kaken_total_amount == 10_000_000  # 代表課題のみ
 
         m2 = s.get(ResearcherMetrics, "A2")         # 論文ゼロ
         assert m2.works_count_3y == 0
@@ -93,6 +113,7 @@ def test_compute_metrics():
         assert m2.oa_rate is None
         assert m2.top_subfield is None
         assert m2.unique_coauthors == 0
+        assert m2.kaken_pi_count == 0 and m2.kaken_total_amount == 0
 
         m5 = s.get(ResearcherMetrics, "A5")         # subfield同数タイ
         assert m5.top_subfield == "AI"              # 辞書順で先
