@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://kyoiku-kenkyudb.omu.ac.jp"
 RETRY_STATUSES = {429, 500, 502, 503}
 MAX_TRIES = 6
-PAGE_SIZE = 100
+PAGE_SIZE = 10  # サイト固定のページサイズ（pp指定は無視される）
 CRAWL_DELAY_SECONDS = 0.5  # 公式総覧への礼儀としてのアクセス間隔
 
 DIVISION_HREF = re.compile(
@@ -113,18 +113,18 @@ def sync_roster(session, client, today: datetime.date) -> int:
         return 0
     rows: dict[str, dict] = {}
     for code, label in divisions:
-        start = 1
+        page = 1
         while True:
             html = client.fetch("/search", params={
                 "m": "affiliation", "l": "ja", "a2": code,
-                "s": start, "o": "affiliation", "pp": PAGE_SIZE})
+                "s": 1, "p": page, "o": "affiliation"})
             members, total = parse_list_page(html)
             for m in members:
                 if m["profile_id"] not in rows:
                     rows[m["profile_id"]] = {**m, "division": label}
-            start += PAGE_SIZE
-            if start > total or not members:
+            if not members or page * PAGE_SIZE >= total:
                 break
+            page += 1
     if not rows:
         logger.warning("roster: 0件のため洗い替えをスキップ（既存データ保持）")
         return 0

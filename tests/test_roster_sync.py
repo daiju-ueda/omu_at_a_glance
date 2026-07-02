@@ -51,7 +51,30 @@ def test_sync_roster_stores_members():
         assert r.position == "教授"
         assert s.get(SyncState, "roster").last_synced_at == "2026-07-02"
     assert client.calls[1][1]["a2"] == "0000001"
-    assert client.calls[1][1]["pp"] == 100
+    assert client.calls[1][1]["p"] == 1
+
+
+def _list_page(total, ids):
+    cards = "\n".join(f"""
+<div class="card-body result">
+  <div class="name-kna">カ　メイ{i}</div>
+  <div class="name-gng"><a href="/html/{i}_ja.html">名前 {i}</a></div>
+</div>""" for i in ids)
+    return f"<div>{total}件中</div>{cards}"
+
+
+def test_sync_roster_paginates_with_p_param():
+    # 実サイトの1ページ10件固定に合わせ、11件は2ページ目まで p=1,2 で取得する
+    page1 = _list_page(11, range(1, 11))
+    page2 = _list_page(11, [11])
+    engine = get_engine(":memory:")
+    client = FakeRosterClient([HOME, page1, page2])
+    with Session(engine) as s:
+        n = sync_roster(s, client, today=TODAY)
+        assert n == 11
+    assert client.calls[1][1]["p"] == 1
+    assert client.calls[2][1]["p"] == 2
+    assert "pp" not in client.calls[1][1]
 
 
 def test_sync_roster_empty_keeps_existing(caplog):
