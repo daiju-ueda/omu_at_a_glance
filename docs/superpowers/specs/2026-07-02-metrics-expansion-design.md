@@ -27,7 +27,7 @@
 - `n_authors: int` — authorships の件数（0あり）
 - `is_intl_collab: bool` — いずれかの著者の `countries` に JP 以外が含まれる
 - `is_corp_collab: bool` — いずれかの著者の `institutions[].type` が "company"
-- `is_authors_truncated: bool` — OpenAlex側のauthorships打ち切りフラグ（100人超の大規模共著論文で著者数が不明になる）
+- `is_authors_truncated: bool` — 大規模共著論文のauthorships打ち切り検出。OpenAlexのlistエンドポイントはAPI側の `is_authors_truncated` フラグを実際には立てない（1,700人超の論文でも欠落することを2026-07-02に実測）ため、APIフラグと `n_authors == 100` ヒューリスティックのORで判定する。誤検出リスクは実DBで著者数92〜99の論文が0件（91の次が100）であることから許容と判断
 
 ### researchers（parse時に summary_stats から）
 
