@@ -62,13 +62,23 @@ def researcher_detail(session, openalex_id, today=None):
                Work.publication_date >= start)
         .order_by(Work.cited_by_count.desc(), Work.openalex_id)
     ).all()
-    seen: set[str] = set()
-    works = []
+    # 同一workに正準・エイリアス両方の著者行がある場合は
+    # metricsのOR集計に合わせて first > corresponding を優先表示
+    best_by_work: dict[str, object] = {}
+    order: list[str] = []
     for row in raw_works:
-        if row.Work.openalex_id in seen:
+        work_id = row.Work.openalex_id
+        if work_id not in best_by_work:
+            best_by_work[work_id] = row
+            order.append(work_id)
             continue
-        seen.add(row.Work.openalex_id)
-        works.append(row)
+        current = best_by_work[work_id]
+        def _rank(r):
+            return (r.Authorship.author_position == "first",
+                    bool(r.Authorship.is_corresponding))
+        if _rank(row) > _rank(current):
+            best_by_work[work_id] = row
+    works = [best_by_work[w] for w in order]
     return researcher, metrics, works
 
 
