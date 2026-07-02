@@ -6,8 +6,11 @@
   <a href="https://openalex.org/{{ r.openalex_id }}" target="_blank">OpenAlex</a>
   {% if r.orcid %}<a href="https://orcid.org/{{ r.orcid }}" target="_blank">ORCID</a>{% endif %}
 </p>
-{% if m %}
+{% if not m %}
+<p>メトリクス未計算です。</p>
+{% endif %}
 <dl class="metrics">
+  {% if m %}
   <div><dt>3年論文数</dt><dd>{{ m.works_count_3y }}</dd></div>
   <div><dt>総被引用数</dt><dd>{{ m.total_citations }}</dd></div>
   <div><dt>FWCI平均</dt><dd>{{ m.fwci_mean|fmt }}</dd></div>
@@ -15,11 +18,22 @@
   <div><dt>top10%論文</dt><dd>{{ m.top10pct_count }}</dd></div>
   <div><dt>筆頭著者</dt><dd>{{ m.first_author_count }}</dd></div>
   <div><dt>責任著者</dt><dd>{{ m.corresponding_count }}</dd></div>
+  <div><dt>top1%論文</dt><dd>{{ m.top1pct_count }}</dd></div>
+  <div><dt>被引用(補正)</dt><dd>{{ m.fractional_citations|fmt }}</dd></div>
+  <div><dt>論文数(補正)</dt><dd>{{ m.fractional_works|fmt }}</dd></div>
+  <div><dt>平均著者数</dt><dd>{{ m.avg_authors|fmt }}</dd></div>
+  <div><dt>ユニーク共著者</dt><dd>{{ m.unique_coauthors }}</dd></div>
+  <div><dt>国際共著率</dt><dd>{{ m.intl_collab_rate|pct }}</dd></div>
+  <div><dt>産学連携率</dt><dd>{{ m.corp_collab_rate|pct }}</dd></div>
+  <div><dt>OA率</dt><dd>{{ m.oa_rate|pct }}</dd></div>
+  <div><dt>preprint</dt><dd>{{ m.preprint_count }}</dd></div>
+  <div><dt>データ/SW</dt><dd>{{ m.dataset_software_count }}</dd></div>
+  <div><dt>主分野</dt><dd>{{ m.top_subfield or "–" }}</dd></div>
+  {% endif %}
   <div><dt>h指数（全期間）</dt><dd>{{ r.h_index }}</dd></div>
+  <div><dt>i10指数（全期間）</dt><dd>{{ r.i10_index }}</dd></div>
+  <div><dt>2年平均被引用</dt><dd>{{ r.two_yr_mean_citedness|fmt }}</dd></div>
 </dl>
-{% else %}
-<p>メトリクス未計算です。</p>
-{% endif %}
 <h3>論文（直近3年・被引用数順）</h3>
 <table>
 <thead><tr><th>タイトル</th><th>掲載誌</th><th>発行日</th><th>被引用</th><th>FWCI</th><th>役割</th></tr></thead>

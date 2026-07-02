@@ -17,6 +17,10 @@ def _fmt(value):
     return "–" if value is None else f"{value:.2f}"
 
 
+def _pct(value):
+    return "–" if value is None else f"{value * 100:.0f}%"
+
+
 MAX_PARAM = 1_000_000
 
 
@@ -40,20 +44,21 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
               name="static")
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
     templates.env.filters["fmt"] = _fmt
+    templates.env.filters["pct"] = _pct
 
     @app.get("/", response_class=HTMLResponse)
     def ranking_page(request: Request, sort: str = "fwci_mean",
-                     min_works: str = "5", page: str = "1"):
+                     min_works: str = "1", page: str = "1"):
         sort_key = sort if sort in queries.SORT_COLUMNS else "fwci_mean"
-        mw = _int_param(min_works, 5)
+        mw = _int_param(min_works, 1)
         pg = _int_param(page, 1, minimum=1)
         with Session(engine) as session:
-            rows, total = queries.ranking(session, sort_key, mw, pg)
+            rows, total, total_all = queries.ranking(session, sort_key, mw, pg)
             synced = queries.last_synced(session)
         return templates.TemplateResponse(request, "ranking.html", {
-            "rows": rows, "total": total, "sort": sort_key,
-            "min_works": mw, "page": pg, "page_size": queries.PAGE_SIZE,
-            "synced": synced,
+            "rows": rows, "total": total, "total_all": total_all,
+            "sort": sort_key, "min_works": mw, "page": pg,
+            "page_size": queries.PAGE_SIZE, "synced": synced,
         })
 
     @app.get("/researchers/{openalex_id}", response_class=HTMLResponse)
