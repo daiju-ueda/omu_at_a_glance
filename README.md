@@ -11,6 +11,18 @@
 
     uv run python scripts/sync.py   # 全量同期＋メトリクス再計算
 
+## 閲覧Web
+
+    uv run uvicorn web.app:create_default_app --factory --host 0.0.0.0 --port 8100
+
+LAN/Tailscale の IP で `http://<host>:8100/` を開く。ページ: `/`（ランキング）・`/search`（検索）・`/researchers/<id>`（詳細）。
+
+常駐させる場合（systemd、要sudo）:
+
+    sudo cp deploy/omu-researchers-web.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now omu-researchers-web
+
 ## cron（推奨）
 
     # 週1回 全量同期（月曜 06:00、被引用数の更新も反映）
