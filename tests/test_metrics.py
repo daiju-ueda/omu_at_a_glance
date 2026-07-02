@@ -13,53 +13,85 @@ def _researcher(id_):
                       works_count=1, raw_json="{}", updated_at="")
 
 
-def _work(id_, date, cites, fwci, top10):
+def _work(id_, date, cites, fwci, top10, *, top1=False, n_authors=1,
+          intl=False, corp=False, oa=False, type_="article", subfield=None):
     return Work(openalex_id=id_, title=id_, publication_date=date,
-                cited_by_count=cites, fwci=fwci, is_top1pct=False,
-                is_top10pct=top10, is_oa=False, raw_json="{}", updated_at="")
+                cited_by_count=cites, fwci=fwci, is_top1pct=top1,
+                is_top10pct=top10, is_oa=oa, type=type_, subfield=subfield,
+                n_authors=n_authors, is_intl_collab=intl, is_corp_collab=corp,
+                raw_json="{}", updated_at="")
+
+
+def _auth(work_id, author_id, position="middle", corresponding=False):
+    return Authorship(work_id=work_id, author_id=author_id,
+                      author_position=position, is_corresponding=corresponding)
 
 
 def test_compute_metrics():
     engine = get_engine(":memory:")
     with Session(engine) as s:
-        s.add_all([_researcher("A1"), _researcher("A2")])
+        s.add_all([_researcher("A1"), _researcher("A2"), _researcher("A5")])
         s.add_all([
-            _work("W1", "2024-01-01", 10, 2.0, True),
-            _work("W2", "2025-01-01", 4, 1.0, False),
-            _work("W3", "2020-01-01", 100, 9.0, True),   # ウィンドウ外
-            _work("W4", "2024-06-01", 6, None, False),    # fwci欠損
+            _work("W1", "2024-01-01", 10, 2.0, True, top1=True, n_authors=2,
+                  intl=True, oa=True, subfield="ML"),
+            _work("W2", "2025-01-01", 4, 1.0, False, n_authors=4, corp=True,
+                  type_="preprint", subfield="ML"),
+            _work("W3", "2020-01-01", 100, 9.0, True),          # ウィンドウ外
+            _work("W4", "2024-06-01", 6, None, False, n_authors=0,
+                  type_="dataset"),                              # 著者数0→除数1
+            _work("W5", "2024-02-01", 1, None, False, subfield="ML"),
+            _work("W6", "2024-03-01", 1, None, False, subfield="AI"),
         ])
         s.add_all([
-            Authorship(work_id="W1", author_id="A1", author_position="first",
-                       is_corresponding=True),
-            Authorship(work_id="W2", author_id="A1", author_position="last",
-                       is_corresponding=False),
-            Authorship(work_id="W3", author_id="A1", author_position="first",
-                       is_corresponding=True),
-            Authorship(work_id="W4", author_id="A1", author_position="middle",
-                       is_corresponding=False),
-            Authorship(work_id="W1", author_id="A9", author_position="middle",
-                       is_corresponding=False),  # researchersに居ない外部著者
+            _auth("W1", "A1", position="first", corresponding=True),
+            _auth("W2", "A1", position="last"),
+            _auth("W3", "A1", position="first", corresponding=True),
+            _auth("W4", "A1"),
+            _auth("W1", "A9"),           # researchersに居ない外部共著者
+            _auth("W5", "A5"),
+            _auth("W6", "A5"),
         ])
         s.commit()
 
         n = compute_metrics(s, TODAY)
-        assert n == 2
+        assert n == 3
 
         m1 = s.get(ResearcherMetrics, "A1")
-        assert m1.works_count_3y == 3          # W1, W2, W4（W3はウィンドウ外）
-        assert m1.total_citations == 20        # 10+4+6
-        assert m1.fwci_mean == 1.5             # (2.0+1.0)/2, W4のNULLは除外
+        # 既存指標（W1, W2, W4がウィンドウ内）
+        assert m1.works_count_3y == 3
+        assert m1.total_citations == 20
+        assert m1.fwci_mean == 1.5
         assert m1.fwci_median == 1.5
         assert m1.top10pct_count == 1
         assert m1.first_author_count == 1
         assert m1.corresponding_count == 1
+        # 新指標
+        assert m1.top1pct_count == 1
+        assert m1.fractional_works == 1.75          # 1/2 + 1/4 + 1/1
+        assert m1.fractional_citations == 12.0      # 10/2 + 4/4 + 6/1
+        assert m1.avg_authors == 2.3333             # (2+4+1)/3
+        assert m1.intl_collab_rate == 0.3333        # W1のみ
+        assert m1.corp_collab_rate == 0.3333        # W2のみ
+        assert m1.oa_rate == 0.3333                 # W1のみ
+        assert m1.preprint_count == 1               # W2
+        assert m1.dataset_software_count == 1       # W4
+        assert m1.unique_coauthors == 1             # A9のみ（本人除外）
+        assert m1.top_subfield == "ML"
 
-        m2 = s.get(ResearcherMetrics, "A2")    # 論文ゼロでも行を持つ
+        m2 = s.get(ResearcherMetrics, "A2")         # 論文ゼロ
         assert m2.works_count_3y == 0
         assert m2.fwci_mean is None
+        assert m2.fractional_works == 0
+        assert m2.avg_authors is None
+        assert m2.intl_collab_rate is None
+        assert m2.oa_rate is None
+        assert m2.top_subfield is None
+        assert m2.unique_coauthors == 0
 
-        assert s.get(ResearcherMetrics, "A9") is None  # 外部著者は集計しない
+        m5 = s.get(ResearcherMetrics, "A5")         # subfield同数タイ
+        assert m5.top_subfield == "AI"              # 辞書順で先
 
-        compute_metrics(s, TODAY)  # 洗い替え：再実行で重複しない
-        assert s.query(ResearcherMetrics).count() == 2
+        assert s.get(ResearcherMetrics, "A9") is None
+
+        compute_metrics(s, TODAY)                   # 洗い替え・冪等
+        assert s.query(ResearcherMetrics).count() == 3
