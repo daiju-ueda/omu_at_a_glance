@@ -29,6 +29,10 @@ def test_window_start():
     assert window_start(TODAY) == "2023-07-02"
 
 
+def test_window_start_leap_day():
+    assert window_start(datetime.date(2028, 2, 29)) == "2025-02-28"
+
+
 def test_sync_authors_upserts_and_records_state():
     engine = get_engine(":memory:")
     client = FakeClient([AUTHOR])

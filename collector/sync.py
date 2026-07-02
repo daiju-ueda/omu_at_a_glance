@@ -19,7 +19,10 @@ COMMIT_EVERY = 1000
 
 
 def window_start(today: datetime.date) -> str:
-    return today.replace(year=today.year - 3).isoformat()
+    try:
+        return today.replace(year=today.year - 3).isoformat()
+    except ValueError:  # 2/29 で3年前が平年の場合
+        return today.replace(year=today.year - 3, day=28).isoformat()
 
 
 def _upsert(session, model, kwargs: dict):
