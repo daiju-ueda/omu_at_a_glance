@@ -197,3 +197,23 @@ def test_match_members_clears_stale_name_ja():
 
         match_members(s)
         assert s.get(Researcher, "A1").name_ja is None
+
+
+def test_match_members_respects_official_roster():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Researcher(openalex_id="A1", display_name="Taro Yamada",
+                         name_ja="公式 名前", is_official_roster=True,
+                         h_index=1, works_count=1, raw_json="{}",
+                         updated_at=""))
+        s.add(Grant(award_id="G1", title="t", total_amount=0,
+                    raw_json="{}", updated_at=""))
+        s.add(GrantMember(award_id="G1", erad_id="E1", name_kanji="山田 太郎",
+                          name_kana="ヤマダ　タロウ", role="principal",
+                          institution="大阪公立大学"))
+        s.commit()
+        match_members(s)
+        a1 = s.get(Researcher, "A1")
+        assert a1.name_ja == "公式 名前"   # 上書きしない
+        # マッチ自体は成立してよい（grant紐付けは有効）
+        assert s.get(GrantMember, ("G1", "E1")).matched_researcher_id == "A1"

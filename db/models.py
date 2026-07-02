@@ -117,6 +117,20 @@ class GrantMember(Base):
         String, nullable=True, index=True)
 
 
+class Roster(Base):
+    __tablename__ = "roster"
+    profile_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name_kanji: Mapped[str] = mapped_column(String)
+    name_kana: Mapped[str | None] = mapped_column(String, nullable=True)
+    position: Mapped[str | None] = mapped_column(String, nullable=True)
+    division: Mapped[str] = mapped_column(String)
+    org_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    keywords: Mapped[str | None] = mapped_column(Text, nullable=True)
+    matched_researcher_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
 def get_engine(path: str = "db/researchers.db"):
     engine = create_engine(f"sqlite:///{path}", connect_args={"timeout": 30})
     Base.metadata.create_all(engine)

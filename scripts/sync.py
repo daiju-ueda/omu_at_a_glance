@@ -12,6 +12,7 @@ from collector.config import get_kaken_appid
 from collector.kaken import KakenAuthError, KakenClient, match_members, sync_kaken
 from collector.metrics import compute_metrics
 from collector.openalex import OpenAlexClient
+from collector.roster import RosterClient, match_roster, sync_roster
 from collector.sync import sync_authors, sync_works
 from db.models import get_engine
 
@@ -46,6 +47,12 @@ def main() -> None:
                 logger.exception("KAKEN同期に失敗（他ステージは継続）")
         else:
             logger.warning("KAKEN_APPID未設定のためKAKEN同期をスキップ")
+        try:
+            n_r = sync_roster(session, RosterClient(), today=today)
+            n_rm = match_roster(session)
+            logger.info("roster: %d人 matched=%d", n_r, n_rm)
+        except Exception:
+            logger.exception("roster同期に失敗（他ステージは継続）")
         n_m = compute_metrics(session, today)
         logger.info("done: authors=%d works=%d metrics=%d", n_a, n_w, n_m)
 

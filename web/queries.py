@@ -7,6 +7,7 @@ from db.models import (Authorship, Researcher, ResearcherMetrics, SyncState,
                        Work)
 
 PAGE_SIZE = 100
+MIN_DEPT_MEMBERS = 5  # 部局間per-capita比較の順位対象とする最低名寄せ人数
 
 SORT_COLUMNS = {
     "fwci_mean": ResearcherMetrics.fwci_mean,
@@ -19,18 +20,23 @@ SORT_COLUMNS = {
 }
 
 
-def ranking(session, sort="fwci_total", min_works=1, page=1):
+def ranking(session, sort="fwci_total", min_works=1, page=1, department=None):
     col = SORT_COLUMNS.get(sort, ResearcherMetrics.fwci_total)
+    count_q = (select(func.count())
+               .select_from(ResearcherMetrics)
+               .join(Researcher,
+                     Researcher.openalex_id == ResearcherMetrics.researcher_id))
+    rows_q = (select(Researcher, ResearcherMetrics)
+              .join(ResearcherMetrics,
+                    ResearcherMetrics.researcher_id == Researcher.openalex_id))
+    if department:
+        count_q = count_q.where(Researcher.department == department)
+        rows_q = rows_q.where(Researcher.department == department)
+    total_all = session.scalar(count_q)
     cond = ResearcherMetrics.works_count_3y >= min_works
-    total_all = session.scalar(
-        select(func.count()).select_from(ResearcherMetrics))
-    total = session.scalar(
-        select(func.count()).select_from(ResearcherMetrics).where(cond))
+    total = session.scalar(count_q.where(cond))
     rows = session.execute(
-        select(Researcher, ResearcherMetrics)
-        .join(ResearcherMetrics,
-              ResearcherMetrics.researcher_id == Researcher.openalex_id)
-        .where(cond)
+        rows_q.where(cond)
         # SQLiteはNULLを最小値として扱うため、DESCでNULLは自然に末尾になる
         .order_by(col.desc(), Researcher.openalex_id)
         .offset((page - 1) * PAGE_SIZE)
@@ -115,3 +121,47 @@ def compare(session, ids):
 def last_synced(session):
     state = session.get(SyncState, "works")
     return state.last_synced_at if state else None
+
+
+def departments_list(session):
+    return list(session.scalars(
+        select(Researcher.department)
+        .where(Researcher.department.is_not(None))
+        .distinct()
+        .order_by(Researcher.department)))
+
+
+def department_stats(session):
+    rows = session.execute(
+        select(Researcher.department,
+               func.count(),
+               func.sum(ResearcherMetrics.works_count_3y),
+               func.sum(ResearcherMetrics.total_citations),
+               func.sum(ResearcherMetrics.fwci_total),
+               func.sum(ResearcherMetrics.top10pct_count),
+               func.sum(ResearcherMetrics.kaken_total_amount))
+        .join(ResearcherMetrics,
+              ResearcherMetrics.researcher_id == Researcher.openalex_id)
+        .where(Researcher.department.is_not(None))
+        .group_by(Researcher.department)
+    ).all()
+    stats = []
+    for dept, n, works, cites, fwci, top10, kaken in rows:
+        stats.append({
+            "department": dept,
+            "members": n,
+            "works": works or 0,
+            "citations": cites or 0,
+            "fwci_total": round(fwci or 0, 2),
+            "works_per_capita": round((works or 0) / n, 2),
+            "fwci_per_capita": round((fwci or 0) / n, 2),
+            "top10": top10 or 0,
+            "kaken_amount": kaken or 0,
+        })
+    # 名寄せ人数が少ない部局はper-capita値が極端に振れるため順位対象から除外し、
+    # 参考表示（人数降順）に回す（n=1の部局が首位に立つ問題への対処）
+    ranked = [s for s in stats if s["members"] >= MIN_DEPT_MEMBERS]
+    ranked.sort(key=lambda item: item["fwci_per_capita"], reverse=True)
+    small = [s for s in stats if s["members"] < MIN_DEPT_MEMBERS]
+    small.sort(key=lambda item: (-item["members"], item["department"]))
+    return ranked, small
