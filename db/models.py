@@ -21,6 +21,8 @@ class Researcher(Base):
     department: Mapped[str | None] = mapped_column(String, nullable=True)
     position: Mapped[str | None] = mapped_column(String, nullable=True)
     is_official_roster: Mapped[bool] = mapped_column(Boolean, default=False)
+    canonical_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True)
     raw_json: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(String)
 
