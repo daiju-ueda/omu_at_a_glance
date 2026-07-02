@@ -58,6 +58,7 @@ def _compare_table(pairs):
         ("インパクト", [
             ("総被引用数", metric("total_citations"), _fmt_int, True),
             ("被引用(補正)", metric("fractional_citations"), _fmt, True),
+            ("FWCI合計", metric("fwci_total"), _fmt, True),
             ("FWCI平均", metric("fwci_mean"), _fmt, True),
             ("FWCI中央値", metric("fwci_median"), _fmt, True),
             ("top10%論文数", metric("top10pct_count"), _fmt_int, True),
@@ -118,9 +119,9 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     templates.env.filters["man"] = _man
 
     @app.get("/", response_class=HTMLResponse)
-    def ranking_page(request: Request, sort: str = "fwci_mean",
+    def ranking_page(request: Request, sort: str = "fwci_total",
                      min_works: str = "1", page: str = "1"):
-        sort_key = sort if sort in queries.SORT_COLUMNS else "fwci_mean"
+        sort_key = sort if sort in queries.SORT_COLUMNS else "fwci_total"
         mw = _int_param(min_works, 1)
         pg = _int_param(page, 1, minimum=1)
         with Session(engine) as session:
@@ -136,13 +137,14 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     def researcher_page(request: Request, openalex_id: str):
         with Session(engine) as session:
             result = queries.researcher_detail(session, openalex_id)
+            ranks = queries.metric_ranks(session, openalex_id)
             synced = queries.last_synced(session)
         if result is None:
             return templates.TemplateResponse(
                 request, "404.html", {"synced": synced}, status_code=404)
         researcher, metrics, works = result
         return templates.TemplateResponse(request, "researcher.html", {
-            "r": researcher, "m": metrics, "works": works, "synced": synced,
+            "r": researcher, "m": metrics, "works": works, "ranks": ranks or {}, "synced": synced,
         })
 
     @app.get("/search", response_class=HTMLResponse)

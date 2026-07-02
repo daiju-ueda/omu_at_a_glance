@@ -14,8 +14,8 @@ def test_ranking_page_default(client):
     assert resp.status_code == 200
     body = resp.text
     assert "Ichiro Tanaka" in body  # 既定min_works=1で全員表示
-    assert body.index("Ichiro Tanaka") < body.index("Taro Yamada")  # fwci 9.9先頭
-    assert body.index("Taro Yamada") < body.index("Hanako Suzuki")  # NULL末尾
+    assert body.index("Taro Yamada") < body.index("Ichiro Tanaka")   # fwci_total 35.0 > 19.8
+    assert body.index("Ichiro Tanaka") < body.index("Hanako Suzuki") # 19.8 > 0
     assert "全3人中 3人を表示" in body
     assert "最終同期: 2026-07-02" in body
     assert "OpenAlex収録分に基づく" in body
@@ -171,3 +171,23 @@ def test_compare_tie_highlights_both(client):
     assert match is not None, "筆頭著者数行が見つかりません"
     row = match.group(0)
     assert 'class="best"' not in row, f"筆頭著者数行に best クラスが含まれています: {row}"
+
+
+def test_ranking_fwci_total_column_and_default(client):
+    body = client.get("/").text
+    assert "FWCI合計" in body
+    assert "FWCI合計 ▼" in body  # 既定ソートのマーカー
+
+
+def test_researcher_detail_ranks(client):
+    body = client.get("/researchers/A1").text
+    assert "学内1位" in body   # kaken_total_amount 75M は1位
+    assert "学内2位" in body   # fwci_mean 3.5 は9.9に次ぐ2位
+    body4 = client.get("/researchers/A4").text
+    assert "学内" not in body4  # metrics無し→順位非表示
+
+
+def test_compare_has_fwci_total_row(client):
+    body = client.get("/compare?ids=A1,A3").text
+    assert "FWCI合計" in body
+    assert '<td class="best">35.00</td>' in body

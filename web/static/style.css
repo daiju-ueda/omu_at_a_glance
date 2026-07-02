@@ -38,3 +38,4 @@ tr.group th { background: #e5e7eb; font-size: 0.8rem; letter-spacing: 0.05em; }
 #compare-bar button:disabled { opacity: 0.5; cursor: default; }
 body:has(input.cmp:checked) main { padding-bottom: 4rem; }
 footer { max-width: 1100px; margin: 1rem auto 2rem; padding: 0 1.5rem; color: var(--muted); font-size: 0.8rem; }
+.metrics dd .rank { display: block; font-size: 0.7rem; font-weight: normal; color: var(--muted); }
