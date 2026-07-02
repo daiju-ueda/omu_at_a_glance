@@ -44,6 +44,7 @@ class Work(Base):
     n_authors: Mapped[int] = mapped_column(Integer, default=0)
     is_intl_collab: Mapped[bool] = mapped_column(Boolean, default=False)
     is_corp_collab: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_authors_truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     raw_json: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(String)
 

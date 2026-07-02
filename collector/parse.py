@@ -55,6 +55,12 @@ def parse_work(rec: dict) -> tuple[dict, list[dict]]:
         "n_authors": len(auth_list),
         "is_intl_collab": bool(countries - {"JP"}),
         "is_corp_collab": has_corp,
+        # OpenAlexのis_authors_truncatedは実運用上ほぼ常にFalse/欠損で返り
+        # （検証済み: 著者5000人超の論文でも立たない）、list/filterエンドポイントは
+        # authorshipsを常に100件で打ち切って返す。n_authors==100を打ち切りの
+        # 実効シグナルとしてOR条件に加える。
+        "is_authors_truncated": (
+            bool(rec.get("is_authors_truncated", False)) or len(auth_list) == 100),
         "raw_json": _dumps(rec),
         "updated_at": rec.get("updated_date") or "",
     }

@@ -14,11 +14,13 @@ def _researcher(id_):
 
 
 def _work(id_, date, cites, fwci, top10, *, top1=False, n_authors=1,
-          intl=False, corp=False, oa=False, type_="article", subfield=None):
+          intl=False, corp=False, oa=False, type_="article", subfield=None,
+          truncated=False):
     return Work(openalex_id=id_, title=id_, publication_date=date,
                 cited_by_count=cites, fwci=fwci, is_top1pct=top1,
                 is_top10pct=top10, is_oa=oa, type=type_, subfield=subfield,
                 n_authors=n_authors, is_intl_collab=intl, is_corp_collab=corp,
+                is_authors_truncated=truncated,
                 raw_json="{}", updated_at="")
 
 
@@ -41,12 +43,15 @@ def test_compute_metrics():
                   type_="dataset"),                              # 著者数0→除数1
             _work("W5", "2024-02-01", 1, None, False, subfield="ML"),
             _work("W6", "2024-03-01", 1, None, False, subfield="AI"),
+            _work("W7", "2024-04-01", 100, None, False, n_authors=100,
+                  truncated=True),                    # 著者数打ち切り（100人）
         ])
         s.add_all([
             _auth("W1", "A1", position="first", corresponding=True),
             _auth("W2", "A1", position="last"),
             _auth("W3", "A1", position="first", corresponding=True),
             _auth("W4", "A1"),
+            _auth("W7", "A1"),
             _auth("W1", "A9"),           # researchersに居ない外部共著者
             _auth("W5", "A5"),
             _auth("W6", "A5"),
@@ -57,9 +62,9 @@ def test_compute_metrics():
         assert n == 3
 
         m1 = s.get(ResearcherMetrics, "A1")
-        # 既存指標（W1, W2, W4がウィンドウ内）
-        assert m1.works_count_3y == 3
-        assert m1.total_citations == 20
+        # 既存指標（W1, W2, W4, W7がウィンドウ内）
+        assert m1.works_count_3y == 4
+        assert m1.total_citations == 120
         assert m1.fwci_mean == 1.5
         assert m1.fwci_median == 1.5
         assert m1.top10pct_count == 1
@@ -67,12 +72,13 @@ def test_compute_metrics():
         assert m1.corresponding_count == 1
         # 新指標
         assert m1.top1pct_count == 1
+        # W7は著者数打ち切り（is_authors_truncated=True）のため著者数補正系から除外
         assert m1.fractional_works == 1.75          # 1/2 + 1/4 + 1/1
         assert m1.fractional_citations == 12.0      # 10/2 + 4/4 + 6/1
         assert m1.avg_authors == 2.3333             # (2+4+1)/3
-        assert m1.intl_collab_rate == 0.3333        # W1のみ
-        assert m1.corp_collab_rate == 0.3333        # W2のみ
-        assert m1.oa_rate == 0.3333                 # W1のみ
+        assert m1.intl_collab_rate == 0.25           # W1のみ / 4件
+        assert m1.corp_collab_rate == 0.25           # W2のみ / 4件
+        assert m1.oa_rate == 0.25                    # W1のみ / 4件
         assert m1.preprint_count == 1               # W2
         assert m1.dataset_software_count == 1       # W4
         assert m1.unique_coauthors == 1             # A9のみ（本人除外）

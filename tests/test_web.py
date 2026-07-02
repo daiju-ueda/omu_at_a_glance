@@ -19,6 +19,7 @@ def test_ranking_page_default(client):
     assert "全3人中 3人を表示" in body
     assert "最終同期: 2026-07-02" in body
     assert "OpenAlex収録分に基づく" in body
+    assert "重複計上される場合がある" in body
 
 
 def test_ranking_sort_and_min_works(client):
@@ -84,3 +85,16 @@ def test_missing_db_fails_fast(tmp_path):
 def test_no_api_docs(client):
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 404
+
+
+def test_researcher_without_metrics_renders(client):
+    resp = client.get("/researchers/A4")
+    assert resp.status_code == 200
+    assert "佐藤次郎" in resp.text
+    assert "メトリクス未計算" in resp.text
+    assert "i10指数" in resp.text
+
+
+def test_pct_zero_renders_as_zero_percent(client):
+    body = client.get("/researchers/A3").text
+    assert "0%" in body  # corp_collab_rate=0.0は「–」でなく0%

@@ -14,7 +14,7 @@ AUTHOR_SELECT = "id,display_name,orcid,works_count,summary_stats,updated_date"
 WORK_SELECT = (
     "id,doi,title,publication_date,type,cited_by_count,fwci,"
     "citation_normalized_percentile,primary_topic,primary_location,"
-    "open_access,authorships,updated_date"
+    "open_access,authorships,is_authors_truncated,updated_date"
 )
 COMMIT_EVERY = 1000
 

@@ -24,6 +24,7 @@ WORK = {
                       "subfield": {"display_name": "Health Informatics"}},
     "primary_location": {"source": {"display_name": "Japanese Journal of Radiology"}},
     "open_access": {"is_oa": True},
+    "is_authors_truncated": False,
     "updated_date": "2026-06-01T00:00:00",
     "authorships": [
         {"author_position": "first", "is_corresponding": True,
@@ -86,6 +87,7 @@ def test_parse_work():
     assert work_kw["n_authors"] == 2
     assert work_kw["is_intl_collab"] is True   # USの共著者あり
     assert work_kw["is_corp_collab"] is False  # companyなし
+    assert work_kw["is_authors_truncated"] is False
     assert len(auths) == 2
     assert auths[0] == {"work_id": "W4385564466", "author_id": "A5023888391",
                         "author_position": "first", "is_corresponding": True}
@@ -102,7 +104,30 @@ def test_parse_work_missing_fields():
     assert work_kw["n_authors"] == 0
     assert work_kw["is_intl_collab"] is False
     assert work_kw["is_corp_collab"] is False
+    assert work_kw["is_authors_truncated"] is False
     assert auths == []
+
+
+def test_parse_work_truncated_flag():
+    work_kw, _ = parse_work({"id": "https://openalex.org/W11", "title": "t",
+                             "publication_date": "2024-01-01",
+                             "is_authors_truncated": True, "authorships": []})
+    assert work_kw["is_authors_truncated"] is True
+
+
+def test_parse_work_truncated_flag_fallback_on_100_authors():
+    # OpenAlexのlist/filterエンドポイントはauthorshipsを常に100件で打ち切って
+    # 返すが、is_authors_truncatedフラグ自体はほぼ常にFalse/欠損で返る実運用上の
+    # 制約があるため、n_authors==100を打ち切りシグナルとして扱う
+    auth_list = [
+        {"author": {"id": f"https://openalex.org/A{i}"}, "countries": []}
+        for i in range(100)
+    ]
+    work_kw, _ = parse_work({"id": "https://openalex.org/W12", "title": "t",
+                             "publication_date": "2024-01-01",
+                             "authorships": auth_list})
+    assert work_kw["n_authors"] == 100
+    assert work_kw["is_authors_truncated"] is True
 
 
 def test_parse_work_explicit_null_fields():

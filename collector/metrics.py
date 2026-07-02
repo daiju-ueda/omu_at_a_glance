@@ -21,7 +21,8 @@ def compute_metrics(session, today: datetime.date) -> int:
                Authorship.is_corresponding, Work.openalex_id,
                Work.cited_by_count, Work.fwci, Work.is_top10pct,
                Work.is_top1pct, Work.n_authors, Work.is_intl_collab,
-               Work.is_corp_collab, Work.is_oa, Work.type, Work.subfield)
+               Work.is_corp_collab, Work.is_oa, Work.type, Work.subfield,
+               Work.is_authors_truncated)
         .join(Work, Work.openalex_id == Authorship.work_id)
         .join(Researcher, Researcher.openalex_id == Authorship.author_id)
         .where(Work.publication_date >= start)
@@ -45,7 +46,8 @@ def compute_metrics(session, today: datetime.date) -> int:
         items = by_author.get(rid, [])
         n_works = len(items)
         fwcis = [r.fwci for r in items if r.fwci is not None]
-        divisors = [max(r.n_authors, 1) for r in items]
+        countable = [r for r in items if not r.is_authors_truncated]
+        divisors = [max(r.n_authors, 1) for r in countable]
         partners: set[str] = set()
         for r in items:
             partners |= by_work.get(r.openalex_id, set())
@@ -69,8 +71,8 @@ def compute_metrics(session, today: datetime.date) -> int:
             corresponding_count=sum(1 for r in items if r.is_corresponding),
             fractional_works=round(sum(1 / d for d in divisors), 4),
             fractional_citations=round(
-                sum(r.cited_by_count / d for r, d in zip(items, divisors)), 4),
-            avg_authors=round(statistics.mean(divisors), 4) if items else None,
+                sum(r.cited_by_count / d for r, d in zip(countable, divisors)), 4),
+            avg_authors=round(statistics.mean(divisors), 4) if countable else None,
             intl_collab_rate=_rate(
                 sum(1 for r in items if r.is_intl_collab), n_works),
             corp_collab_rate=_rate(
