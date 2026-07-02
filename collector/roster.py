@@ -2,6 +2,7 @@ import datetime
 import logging
 import re
 import time
+import unicodedata
 from collections import defaultdict
 
 import httpx
@@ -9,7 +10,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import delete, select
 
 from collector.nameutil import kana_part_variants, normalize_name
-from db.models import GrantMember, Researcher, Roster, SyncState
+from db.models import GrantMember, Researcher, Roster, RosterAchievement, SyncState
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,13 @@ DIVISION_HREF = re.compile(
     r"^/search\?m=affiliation&l=ja&a2=(\d+)&s=1&o=affiliation$")
 TOTAL_RE = re.compile(r"([0-9,]+)\s*件中")
 PROFILE_RE = re.compile(r"/html/(\d+)_ja\.html")
+ACHIEVEMENT_SECTIONS = {
+    "jusho": "award",
+    "chosho": "book",
+    "knkyu_prsn": "presentation",
+    "gkkai_iinkai": "committee",
+}
+YEAR_RE = re.compile(r"(19|20)\d{2}")
 
 
 class RosterClient:
@@ -144,6 +152,110 @@ def sync_roster(session, client, today: datetime.date) -> int:
                             last_synced_at=today.isoformat()))
     session.commit()
     logger.info("roster sync done: %d人 / %d部局", len(rows), len(divisions))
+    return len(rows)
+
+
+COMMITTEE_TITLE_SKIP_PREFIX = "審議会・政策研究会等の委員会"
+PRESENTATION_TITLE_SUFFIXES = ("国内会議", "国際会議")
+
+
+def parse_profile_achievements(html: str) -> list[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    entries: list[dict] = []
+    for section_id, category in ACHIEVEMENT_SECTIONS.items():
+        container = soup.find("div", id=section_id)
+        if container is None:
+            continue
+        for li in container.find_all("li"):
+            title_el = li.find("p", class_="title")
+            if title_el is None:
+                # 委員歴などはタイトルが <p class=""> で入る
+                for p in li.find_all("p"):
+                    classes = p.get("class") or []
+                    if ("contents" not in classes
+                            and "accordion-menu-bar" not in classes
+                            and p.find_parent(class_="gaiyo-detail") is None):
+                        title_el = p
+                        break
+            if title_el is None:
+                continue
+            title = title_el.get_text(" ", strip=True)
+            title = " ".join(title.split())
+            if not title:
+                continue
+            if title.startswith(COMMITTEE_TITLE_SKIP_PREFIX):
+                continue
+            if category == "presentation":
+                for suffix in PRESENTATION_TITLE_SUFFIXES:
+                    title = title.removesuffix(suffix).strip()
+                if not title:
+                    continue
+            detail = None
+            year = None
+            for p in li.find_all("p", class_="contents"):
+                if p.find_parent(class_="gaiyo-detail") is not None:
+                    continue
+                text = p.get_text(" ", strip=True)
+                if not text:
+                    continue
+                if detail is None:
+                    detail = text
+                if year is None:
+                    year_m = YEAR_RE.search(text)
+                    if year_m:
+                        year = int(year_m.group(0))
+            entries.append({
+                "category": category,
+                "title": title,
+                "year": year,
+                "detail": detail,
+            })
+    return entries
+
+
+def _entry_key(pid: str, entry: dict) -> tuple:
+    return (pid, entry["category"],
+            unicodedata.normalize("NFKC", entry["title"]),
+            unicodedata.normalize("NFKC", entry.get("detail") or ""),
+            entry.get("year"))
+
+
+def sync_profiles(session, client, today: datetime.date) -> int:
+    profile_ids = list(session.scalars(select(Roster.profile_id)))
+    if not profile_ids:
+        logger.warning("profiles: rosterが空のためスキップ")
+        return 0
+    rows: list[dict] = []
+    seen_keys: set = set()
+    ok = 0
+    for pid in profile_ids:
+        try:
+            html = client.fetch(f"/html/{pid}_ja.html")
+        except Exception as e:
+            logger.warning("profileページ取得失敗 %s: %s", pid, e)
+            continue
+        ok += 1
+        for entry in parse_profile_achievements(html):
+            key = _entry_key(pid, entry)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            rows.append({**entry, "profile_id": pid})
+    if ok < len(profile_ids) * 0.5:
+        logger.warning(
+            "profiles: 取得成功が5割未満（%d/%d）のため洗い替えをスキップ",
+            ok, len(profile_ids))
+        return 0
+    if not rows:
+        logger.warning("profiles: 実績が0件のため洗い替えをスキップ（既存データ保持）")
+        return 0
+    session.execute(delete(RosterAchievement))
+    for row in rows:
+        session.add(RosterAchievement(**row, updated_at=today.isoformat()))
+    session.merge(SyncState(source="profiles", cursor=None,
+                            last_synced_at=today.isoformat()))
+    session.commit()
+    logger.info("profiles: %d人分 %d件の実績", ok, len(rows))
     return len(rows)
 
 

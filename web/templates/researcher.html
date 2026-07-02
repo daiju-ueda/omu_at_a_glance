@@ -34,11 +34,23 @@
   <div><dt>科研費（代表）</dt><dd>{{ m.kaken_pi_count }}</dd></div>
   <div><dt>科研費（分担）</dt><dd>{{ m.kaken_copi_count }}</dd></div>
   <div><dt>科研費配分総額</dt><dd>{{ m.kaken_total_amount|man }}{% if ranks.kaken_total_amount %}<span class="rank">学内{{ ranks.kaken_total_amount[0] }}位</span>{% endif %}</dd></div>
+  <div><dt>受賞（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.awards_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>著書（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.books_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>講演（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.presentations_count }}{% else %}–{% endif %}</dd></div>
+  <div><dt>委員歴（全期間）</dt><dd>{% if r.is_official_roster %}{{ m.committee_count }}{% else %}–{% endif %}</dd></div>
   {% endif %}
   <div><dt>h指数（全期間）</dt><dd>{{ r.h_index }}</dd></div>
   <div><dt>i10指数（全期間）</dt><dd>{{ r.i10_index }}</dd></div>
   <div><dt>2年平均被引用</dt><dd>{{ r.two_yr_mean_citedness|fmt }}</dd></div>
 </dl>
+{% if awards %}
+<h3>受賞歴（公式総覧・全期間）</h3>
+<ul class="awards">
+{% for a in awards %}
+  <li>{{ a.title }}{% if a.year %}<span class="year">（{{ a.year }}）</span>{% endif %}</li>
+{% endfor %}
+</ul>
+{% endif %}
 <h3>論文（直近3年・被引用数順）</h3>
 <table>
 <thead><tr><th>タイトル</th><th>掲載誌</th><th>発行日</th><th>被引用</th><th>FWCI</th><th>役割</th></tr></thead>

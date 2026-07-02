@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 from db.models import get_engine
-from web.queries import (compare, department_stats, departments_list,
-                         last_synced, metric_ranks, ranking,
+from web.queries import (awards_for, compare, department_stats,
+                         departments_list, last_synced, metric_ranks, ranking,
                          researcher_detail, search)
 
 
@@ -181,3 +181,10 @@ def test_detail_alias_role_merged_deterministically(seeded_db_path):
         _, _, works = researcher_detail(s, "A1")
         w3 = next(row for row in works if row.Work.openalex_id == "W3")
         assert w3.Authorship.author_position == "first"
+
+
+def test_awards_for(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        awards = awards_for(s, "A1")
+        assert [a.title for a in awards] == ["ベスト研究賞", "古い賞"]  # NULL年は末尾
+        assert awards_for(s, "A2") == []

@@ -13,7 +13,7 @@ from collector.dedup import apply_dedup
 from collector.kaken import KakenAuthError, KakenClient, match_members, sync_kaken
 from collector.metrics import compute_metrics
 from collector.openalex import OpenAlexClient
-from collector.roster import RosterClient, match_roster, sync_roster
+from collector.roster import RosterClient, match_roster, sync_profiles, sync_roster
 from collector.sync import sync_authors, sync_works
 from db.models import get_engine
 
@@ -59,6 +59,8 @@ def main() -> None:
         try:
             n_r = sync_roster(session, RosterClient(), today=today)
             n_rm = match_roster(session)
+            n_p = sync_profiles(session, RosterClient(), today=today)
+            logger.info("profiles: %d件", n_p)
             logger.info("roster: %d人 matched=%d", n_r, n_rm)
         except Exception:
             session.rollback()

@@ -3,8 +3,8 @@ import datetime
 from sqlalchemy import func, or_, select
 
 from collector.sync import window_start
-from db.models import (Authorship, Researcher, ResearcherMetrics, SyncState,
-                       Work)
+from db.models import (Authorship, Researcher, ResearcherMetrics, Roster,
+                       RosterAchievement, SyncState, Work)
 
 PAGE_SIZE = 100
 MIN_DEPT_MEMBERS = 5  # 部局間per-capita比較の順位対象とする最低名寄せ人数
@@ -187,3 +187,13 @@ def department_stats(session):
     small = [s for s in stats if s["members"] < MIN_DEPT_MEMBERS]
     small.sort(key=lambda item: (-item["members"], item["department"]))
     return ranked, small
+
+
+def awards_for(session, researcher_id):
+    return list(session.scalars(
+        select(RosterAchievement)
+        .join(Roster, Roster.profile_id == RosterAchievement.profile_id)
+        .where(Roster.matched_researcher_id == researcher_id,
+               RosterAchievement.category == "award")
+        .order_by(RosterAchievement.year.desc())
+    ))
