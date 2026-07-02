@@ -3,8 +3,8 @@ import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from collector.roster import match_roster, sync_roster
-from db.models import Researcher, Roster, SyncState, get_engine
+from collector.roster import match_roster, sync_profiles, sync_roster
+from db.models import Researcher, Roster, RosterAchievement, SyncState, get_engine
 
 TODAY = datetime.date(2026, 7, 2)
 
@@ -185,3 +185,63 @@ def test_match_roster_ignores_aliases():
         assert s.get(Roster, "111").matched_researcher_id == "A1"
         assert s.get(Researcher, "A1").is_official_roster is True
         assert s.get(Researcher, "A1b").is_official_roster is False
+
+
+PROFILE_A = """<div id="jusho"><ul><li><p class="title">賞X</p>
+<p class="contents">2020 機関</p></li></ul></div>"""
+
+
+class FakeProfileClient:
+    def __init__(self, pages: dict, fail: set = frozenset()):
+        self.pages = pages
+        self.fail = fail
+        self.calls = []
+
+    def fetch(self, path, params=None):
+        self.calls.append(path)
+        pid = path.split("/")[-1].replace("_ja.html", "")
+        if pid in self.fail:
+            raise RuntimeError("fetch failed")
+        return self.pages.get(pid, "<html></html>")
+
+
+def test_sync_profiles_stores_achievements():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add_all([
+            Roster(profile_id="111", name_kanji="山田 太郎", division="D",
+                   updated_at=""),
+            Roster(profile_id="222", name_kanji="鈴木 花子", division="D",
+                   updated_at=""),
+        ])
+        s.commit()
+        client = FakeProfileClient({"111": PROFILE_A})
+        n = sync_profiles(s, client, today=TODAY)
+        assert n == 1
+        rows = list(s.scalars(select(RosterAchievement)))
+        assert rows[0].profile_id == "111"
+        assert rows[0].category == "award"
+        assert rows[0].year == 2020
+        assert s.get(SyncState, "profiles").last_synced_at == "2026-07-02"
+        assert "/html/111_ja.html" in client.calls
+
+
+def test_sync_profiles_majority_failure_keeps_existing(caplog):
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add_all([
+            Roster(profile_id="111", name_kanji="a", division="D",
+                   updated_at=""),
+            Roster(profile_id="222", name_kanji="b", division="D",
+                   updated_at=""),
+            Roster(profile_id="333", name_kanji="c", division="D",
+                   updated_at=""),
+        ])
+        s.add(RosterAchievement(profile_id="OLD", category="award",
+                                title="既存の賞", year=2000, detail=None,
+                                updated_at=""))
+        s.commit()
+        client = FakeProfileClient({}, fail={"111", "222"})  # 2/3失敗
+        with caplog.at_level("WARNING"):
+            assert sync_profiles(s, client, today=TODAY) == 0
+        assert s.scalars(select(RosterAchievement)).first().title == "既存の賞"

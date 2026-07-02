@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import delete, select
 
 from collector.nameutil import kana_part_variants, normalize_name
-from db.models import GrantMember, Researcher, Roster, SyncState
+from db.models import GrantMember, Researcher, Roster, RosterAchievement, SyncState
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,37 @@ def parse_profile_achievements(html: str) -> list[dict]:
                 "detail": detail,
             })
     return entries
+
+
+def sync_profiles(session, client, today: datetime.date) -> int:
+    profile_ids = list(session.scalars(select(Roster.profile_id)))
+    if not profile_ids:
+        logger.warning("profiles: rosterが空のためスキップ")
+        return 0
+    rows: list[dict] = []
+    ok = 0
+    for pid in profile_ids:
+        try:
+            html = client.fetch(f"/html/{pid}_ja.html")
+        except Exception as e:
+            logger.warning("profileページ取得失敗 %s: %s", pid, e)
+            continue
+        ok += 1
+        for entry in parse_profile_achievements(html):
+            rows.append({**entry, "profile_id": pid})
+    if ok < len(profile_ids) * 0.5:
+        logger.warning(
+            "profiles: 取得成功が5割未満（%d/%d）のため洗い替えをスキップ",
+            ok, len(profile_ids))
+        return 0
+    session.execute(delete(RosterAchievement))
+    for row in rows:
+        session.add(RosterAchievement(**row, updated_at=today.isoformat()))
+    session.merge(SyncState(source="profiles", cursor=None,
+                            last_synced_at=today.isoformat()))
+    session.commit()
+    logger.info("profiles: %d人分 %d件の実績", ok, len(rows))
+    return len(rows)
 
 
 def match_roster(session) -> int:

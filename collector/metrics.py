@@ -5,7 +5,7 @@ import statistics
 from sqlalchemy import delete, select
 
 from collector.sync import window_start
-from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Work
+from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Roster, RosterAchievement, Work
 
 
 def _rate(count, total):
@@ -76,6 +76,16 @@ def compute_metrics(session, today: datetime.date) -> int:
     ):
         kaken_by_author.setdefault(canon(row.matched_researcher_id), []).append(row)
 
+    ach_by_author: dict[str, dict] = {}
+    for rid, category in session.execute(
+        select(Roster.matched_researcher_id, RosterAchievement.category)
+        .join(RosterAchievement,
+              RosterAchievement.profile_id == Roster.profile_id)
+        .where(Roster.matched_researcher_id.is_not(None))
+    ):
+        counts = ach_by_author.setdefault(canon(rid), {})
+        counts[category] = counts.get(category, 0) + 1
+
     n = 0
     for rid in session.scalars(select(Researcher.openalex_id)
                                .where(Researcher.canonical_id.is_(None))):
@@ -129,6 +139,11 @@ def compute_metrics(session, today: datetime.date) -> int:
             kaken_total_amount=sum(
                 k.total_amount for k in kaken_by_author.get(rid, [])
                 if k.role == "principal"),
+            awards_count=ach_by_author.get(rid, {}).get("award", 0),
+            books_count=ach_by_author.get(rid, {}).get("book", 0),
+            presentations_count=ach_by_author.get(rid, {}).get(
+                "presentation", 0),
+            committee_count=ach_by_author.get(rid, {}).get("committee", 0),
             computed_at=today.isoformat(),
         ))
         n += 1

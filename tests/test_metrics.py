@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy.orm import Session
 
 from collector.metrics import compute_metrics
-from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Work, get_engine
+from db.models import Authorship, Grant, GrantMember, Researcher, ResearcherMetrics, Roster, RosterAchievement, Work, get_engine
 
 TODAY = datetime.date(2026, 7, 2)
 
@@ -73,6 +73,18 @@ def test_compute_metrics():
                         name_kana=None, role="principal",
                         matched_researcher_id=None),  # 未マッチは集計外
         ])
+        s.add(Roster(profile_id="P1", name_kanji="x", division="D",
+                     matched_researcher_id="A1", updated_at=""))
+        s.add_all([
+            RosterAchievement(profile_id="P1", category="award", title="賞1",
+                              year=2020, detail=None, updated_at=""),
+            RosterAchievement(profile_id="P1", category="award", title="賞2",
+                              year=2021, detail=None, updated_at=""),
+            RosterAchievement(profile_id="P1", category="book", title="本1",
+                              year=2019, detail=None, updated_at=""),
+            RosterAchievement(profile_id="P9", category="award", title="無関係",
+                              year=2020, detail=None, updated_at=""),
+        ])
         s.commit()
 
         n = compute_metrics(s, TODAY)
@@ -104,6 +116,9 @@ def test_compute_metrics():
         assert m1.kaken_pi_count == 1
         assert m1.kaken_copi_count == 1
         assert m1.kaken_total_amount == 10_000_000  # 代表課題のみ
+        assert m1.awards_count == 2
+        assert m1.books_count == 1
+        assert m1.presentations_count == 0
 
         m2 = s.get(ResearcherMetrics, "A2")         # 論文ゼロ
         assert m2.works_count_3y == 0
@@ -116,6 +131,7 @@ def test_compute_metrics():
         assert m2.top_subfield is None
         assert m2.unique_coauthors == 0
         assert m2.kaken_pi_count == 0 and m2.kaken_total_amount == 0
+        assert m2.awards_count == 0
 
         m5 = s.get(ResearcherMetrics, "A5")         # subfield同数タイ
         assert m5.top_subfield == "AI"              # 辞書順で先
