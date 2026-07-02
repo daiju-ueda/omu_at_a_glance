@@ -207,6 +207,9 @@ def sync_profiles(session, client, today: datetime.date) -> int:
             "profiles: 取得成功が5割未満（%d/%d）のため洗い替えをスキップ",
             ok, len(profile_ids))
         return 0
+    if not rows:
+        logger.warning("profiles: 実績が0件のため洗い替えをスキップ（既存データ保持）")
+        return 0
     session.execute(delete(RosterAchievement))
     for row in rows:
         session.add(RosterAchievement(**row, updated_at=today.isoformat()))

@@ -245,3 +245,18 @@ def test_sync_profiles_majority_failure_keeps_existing(caplog):
         with caplog.at_level("WARNING"):
             assert sync_profiles(s, client, today=TODAY) == 0
         assert s.scalars(select(RosterAchievement)).first().title == "既存の賞"
+
+
+def test_sync_profiles_zero_entries_keeps_existing(caplog):
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Roster(profile_id="111", name_kanji="a", division="D",
+                     updated_at=""))
+        s.add(RosterAchievement(profile_id="OLD", category="award",
+                                title="既存の賞", year=2000, detail=None,
+                                updated_at=""))
+        s.commit()
+        client = FakeProfileClient({"111": "<html>実績セクション無し</html>"})
+        with caplog.at_level("WARNING"):
+            assert sync_profiles(s, client, today=TODAY) == 0
+        assert s.scalars(select(RosterAchievement)).first().title == "既存の賞"
