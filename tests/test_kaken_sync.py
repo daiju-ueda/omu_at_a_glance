@@ -20,7 +20,12 @@ XML_PAGE = """<?xml version="1.0"?>
       <institution niiCode="383195" sequence="1">大阪公立大学</institution>
       <periodOfAward searchStartFiscalYear="2022" searchEndFiscalYear="2025"/>
       <member eradCode="E1" role="principal_investigator">
+        <institution>大阪公立大学</institution>
         <personalName><fullName>山田 太郎</fullName><familyName yomi="ヤマダ">山田</familyName><givenName yomi="タロウ">太郎</givenName></personalName>
+      </member>
+      <member eradCode="E4" role="co_investigator_buntan">
+        <institution>大阪大学</institution>
+        <personalName><fullName>外部 花子</fullName><familyName yomi="ソトベ">外部</familyName><givenName yomi="ハナコ">花子</givenName></personalName>
       </member>
       <overallAwardAmount><totalCost>10000000</totalCost></overallAwardAmount>
     </summary>
@@ -31,6 +36,7 @@ XML_PAGE = """<?xml version="1.0"?>
       <institution niiCode="383195" sequence="1">大阪公立大学</institution>
       <periodOfAward searchStartFiscalYear="2018" searchEndFiscalYear="2020"/>
       <member eradCode="E1" role="principal_investigator">
+        <institution>大阪公立大学</institution>
         <personalName><fullName>山田 太郎</fullName><familyName yomi="ヤマダ">山田</familyName><givenName yomi="タロウ">太郎</givenName></personalName>
       </member>
     </summary>
@@ -41,6 +47,7 @@ XML_PAGE = """<?xml version="1.0"?>
       <institution niiCode="12345" sequence="1">大阪大学</institution>
       <periodOfAward searchStartFiscalYear="2023" searchEndFiscalYear="2026"/>
       <member eradCode="E9" role="principal_investigator">
+        <institution>大阪大学</institution>
         <personalName><fullName>大阪 公立太</fullName><familyName yomi="オオサカ">大阪</familyName><givenName yomi="コウリツタ">公立太</givenName></personalName>
       </member>
     </summary>
@@ -108,11 +115,14 @@ def test_match_members_unique_and_ambiguous():
                     raw_json="{}", updated_at=""))
         s.add_all([
             GrantMember(award_id="G1", erad_id="E1", name_kanji="山田 太郎",
-                        name_kana="ヤマダ タロウ", role="principal"),
+                        name_kana="ヤマダ タロウ", institution="大阪公立大学",
+                        role="principal"),
             GrantMember(award_id="G1", erad_id="E2", name_kanji="鈴木 花子",
-                        name_kana="スズキ ハナコ", role="co_investigator"),
+                        name_kana="スズキ ハナコ", institution="大阪公立大学",
+                        role="co_investigator"),
             GrantMember(award_id="G1", erad_id="E3", name_kanji="無 名",
-                        name_kana=None, role="co_investigator"),
+                        name_kana=None, institution="大阪公立大学",
+                        role="co_investigator"),
         ])
         s.commit()
 
@@ -123,3 +133,67 @@ def test_match_members_unique_and_ambiguous():
         assert s.get(GrantMember, ("G1", "E3")).matched_researcher_id is None
         assert s.get(Researcher, "A1").name_ja == "山田 太郎"
         assert s.get(Researcher, "A2").name_ja is None
+
+
+def test_match_members_ignores_non_omu_institution():
+    # 実XMLではメンバーごとに所属機関が明示される。仮名が一致していても他機関所属なら
+    # マッチさせない（同姓同名の他人を誤ってOMU研究者に紐付けない）
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(_researcher("A1", "Taro Yamada"))
+        s.add(Grant(award_id="G1", title="t", total_amount=0,
+                    raw_json="{}", updated_at=""))
+        s.add(GrantMember(award_id="G1", erad_id="E1", name_kanji="山田 太郎",
+                          name_kana="ヤマダ タロウ", institution="大阪大学",
+                          role="principal"))
+        s.commit()
+
+        n = match_members(s)
+        assert n == 0
+        assert s.get(GrantMember, ("G1", "E1")).matched_researcher_id is None
+        assert s.get(Researcher, "A1").name_ja is None
+
+
+def test_match_members_unmatches_on_conflicting_kanji_claims():
+    # 同一研究者に対し、カナは一致するが漢字表記が異なる2つのmemberからclaimされた場合、
+    # 本人確認が取れないため両方unmatchにする（name_jaも設定しない）
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(_researcher("A1", "Takashi Mori"))
+        s.add(Grant(award_id="G1", title="t", total_amount=0,
+                    raw_json="{}", updated_at=""))
+        s.add_all([
+            GrantMember(award_id="G1", erad_id="E1", name_kanji="森 隆",
+                        name_kana="モリ タカシ", institution="大阪公立大学",
+                        role="principal"),
+            GrantMember(award_id="G1", erad_id="E2", name_kanji="森 崇",
+                        name_kana="モリ タカシ", institution="大阪公立大学",
+                        role="co_investigator"),
+        ])
+        s.commit()
+
+        n = match_members(s)
+        assert n == 0
+        assert s.get(GrantMember, ("G1", "E1")).matched_researcher_id is None
+        assert s.get(GrantMember, ("G1", "E2")).matched_researcher_id is None
+        assert s.get(Researcher, "A1").name_ja is None
+
+
+def test_match_members_clears_stale_name_ja():
+    # フェーズ2の公式名簿が無い現状、name_jaのソースはKAKENのみ。今回マッチしなかった
+    # 研究者に過去のname_jaが残っていたら、古い（誤りの可能性がある）値としてクリアする
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(_researcher("A1", "Taro Yamada"))
+        researcher = s.get(Researcher, "A1")
+        researcher.name_ja = "山田 次郎"  # 前回runの古い値（今回はマッチしない想定）
+        s.add(Grant(award_id="G1", title="t", total_amount=0,
+                    raw_json="{}", updated_at=""))
+        # A1とはマッチしないメンバー（カナ不一致）だけを投入
+        s.add(GrantMember(award_id="G1", erad_id="E9", name_kanji="無関係 太郎",
+                          name_kana="ムカンケイ タロウ", institution="大阪公立大学",
+                          role="co_investigator"))
+        s.commit()
+
+        match_members(s)
+        assert s.get(Researcher, "A1").name_ja is None

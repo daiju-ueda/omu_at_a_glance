@@ -110,6 +110,7 @@ class GrantMember(Base):
     erad_id: Mapped[str] = mapped_column(String, primary_key=True)
     name_kanji: Mapped[str] = mapped_column(String)
     name_kana: Mapped[str | None] = mapped_column(String, nullable=True)
+    institution: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String)
     matched_researcher_id: Mapped[str | None] = mapped_column(
         String, nullable=True, index=True)

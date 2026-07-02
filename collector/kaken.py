@@ -23,6 +23,8 @@ BASE_URL = "https://kaken.nii.ac.jp"
 RETRY_STATUSES = {429, 500, 502, 503}
 MAX_TRIES = 6
 PAGE_SIZE_KAKEN = 500
+# KAKEN APIのrwは{20,50,100,200,500}のみ受理。それ以外は「エラーではなく0件」を
+# 静かに返すため、この値を変えるときは必ずenum内の値にすること
 # 実XMLの<summary>はja/en両方を含むため、xml:lang="ja"のsummaryを明示的に選ぶ
 _JA_SUMMARY_XPATH = "summary[@{http://www.w3.org/XML/1998/namespace}lang='ja']"
 
@@ -121,11 +123,15 @@ def parse_grants(xml_text: str) -> tuple[list[tuple[dict, list[dict]]], int]:
                 kana = (f"{family_kana} {given_kana}"
                         if family_kana and given_kana else None)
                 role = m.get("role") or ""
+                # memberの直接の子<institution>が所属機関（affiliation配下のものと区別するため
+                # 直下のみを見る）
+                institution = m.findtext("institution")
                 members.append({
                     "award_id": award_id,
                     "erad_id": erad or f"name:{name_kanji}",
                     "name_kanji": name_kanji,
                     "name_kana": kana,
+                    "institution": institution.strip() if institution else None,
                     "role": ("principal" if "principal_investigator" in role
                              else "co_investigator"),
                 })
@@ -185,16 +191,25 @@ def sync_kaken(session, client, today: datetime.date,
     return len(kept)
 
 
+OMU_INSTITUTION = "大阪公立大学"
+
+
 def match_members(session) -> int:
     index: dict[str, set[str]] = defaultdict(set)
     for rid, name in session.execute(
             select(Researcher.openalex_id, Researcher.display_name)):
         index[normalize_name(name)].add(rid)
 
-    matched = 0
-    name_ja_by_rid: dict[str, str] = {}
+    # rid -> このrunで一意マッチした GrantMember のリスト（後で衝突検知に使う）
+    rid_members: dict[str, list] = defaultdict(list)
+    rid_kanji: dict[str, set[str]] = defaultdict(set)
+
     for member in session.scalars(select(GrantMember)):
         member.matched_researcher_id = None
+        # 実XMLのmemberには所属機関が明示される。他機関の同姓同名による誤爆を防ぐため、
+        # 本学所属のメンバーのみをマッチ対象にする
+        if member.institution != OMU_INSTITUTION:
+            continue
         if not member.name_kana:
             continue
         parts = member.name_kana.replace("　", " ").split()
@@ -209,9 +224,31 @@ def match_members(session) -> int:
                 candidates |= index.get(normalize_name(f"{fam} {giv}"), set())
         if len(candidates) == 1:
             rid = candidates.pop()
+            rid_members[rid].append(member)
+            rid_kanji[rid].add(member.name_kanji.replace("　", " "))
+
+    matched = 0
+    name_ja_by_rid: dict[str, str] = {}
+    for rid, members in rid_members.items():
+        kanji_variants = rid_kanji[rid]
+        if len(kanji_variants) > 1:
+            # 同一研究者に異なる漢字表記で claim されている＝別人の可能性が高く、
+            # 誰の名前かも確定できないため全員unmatchのままにする（識別子不確実）
+            logger.warning(
+                "KAKEN名寄せ: %sに漢字表記が衝突するclaimあり（%s）→unmatch",
+                rid, sorted(kanji_variants))
+            continue
+        for member in members:
             member.matched_researcher_id = rid
-            name_ja_by_rid[rid] = member.name_kanji.replace("　", " ")
             matched += 1
+        name_ja_by_rid[rid] = next(iter(kanji_variants))
+
+    # name_ja の全件再計算: フェーズ2の公式名簿が無い現状ではKAKENが唯一のソースなので、
+    # 今回マッチしなかった研究者のname_jaは（過去に付いていても）クリアするのが正しい
+    for researcher in session.scalars(
+            select(Researcher).where(Researcher.name_ja.is_not(None))):
+        if researcher.openalex_id not in name_ja_by_rid:
+            researcher.name_ja = None
 
     for rid, name_ja in name_ja_by_rid.items():
         researcher = session.get(Researcher, rid)

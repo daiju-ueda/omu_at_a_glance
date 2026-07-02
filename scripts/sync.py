@@ -17,6 +17,8 @@ from db.models import get_engine
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpxはINFOでURL全体（クエリのappid含む）をログに出すため抑制する
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("sync")
 
 
@@ -40,6 +42,8 @@ def main() -> None:
                 logger.info("kaken: grants=%d matched=%d", n_k, n_match)
             except KakenAuthError:
                 logger.warning("KAKEN appidが無効のためスキップ（有効化を待って再実行）")
+            except Exception:
+                logger.exception("KAKEN同期に失敗（他ステージは継続）")
         else:
             logger.warning("KAKEN_APPID未設定のためKAKEN同期をスキップ")
         n_m = compute_metrics(session, today)

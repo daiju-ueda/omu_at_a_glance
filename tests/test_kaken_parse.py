@@ -22,6 +22,8 @@ XML = """<?xml version="1.0" encoding="UTF-8"?>
         <endDate estimated="false" nondisclosure="false">2026-03-31</endDate>
       </periodOfAward>
       <member sequence="1" eradCode="40000001" role="principal_investigator">
+        <institution>大阪公立大学</institution>
+        <department>大学院工学研究科</department>
         <personalName sequence="1">
           <fullName>山田 太郎</fullName>
           <familyName yomi="ヤマダ">山田</familyName>
@@ -29,6 +31,8 @@ XML = """<?xml version="1.0" encoding="UTF-8"?>
         </personalName>
       </member>
       <member sequence="2" role="co_investigator_buntan">
+        <institution>東京大学</institution>
+        <affiliation sequence="1"><institution>東京大学</institution></affiliation>
         <personalName sequence="1">
           <fullName>鈴木 花子</fullName>
           <familyName yomi="スズキ">鈴木</familyName>
@@ -80,15 +84,17 @@ def test_parse_grants():
     assert len(members1) == 2
     assert members1[0] == {"award_id": "22K07777", "erad_id": "40000001",
                            "name_kanji": "山田 太郎", "name_kana": "ヤマダ タロウ",
-                           "role": "principal"}
+                           "institution": "大阪公立大学", "role": "principal"}
     assert members1[1]["erad_id"] == "name:鈴木 花子"
     assert members1[1]["role"] == "co_investigator"
+    assert members1[1]["institution"] == "東京大学"
 
     g2, members2 = entries[1]
     assert g2["institution"] == "他大学"
     assert g2["category"] is None
     assert g2["start_year"] is None and g2["total_amount"] == 0
     assert members2[0]["name_kana"] is None
+    assert members2[0]["institution"] is None
 
 
 def test_parse_grants_empty():
