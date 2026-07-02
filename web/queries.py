@@ -13,12 +13,15 @@ SORT_COLUMNS = {
     "total_citations": ResearcherMetrics.total_citations,
     "top10pct_count": ResearcherMetrics.top10pct_count,
     "works_count_3y": ResearcherMetrics.works_count_3y,
+    "fractional_citations": ResearcherMetrics.fractional_citations,
 }
 
 
-def ranking(session, sort="fwci_mean", min_works=5, page=1):
+def ranking(session, sort="fwci_mean", min_works=1, page=1):
     col = SORT_COLUMNS.get(sort, ResearcherMetrics.fwci_mean)
     cond = ResearcherMetrics.works_count_3y >= min_works
+    total_all = session.scalar(
+        select(func.count()).select_from(ResearcherMetrics))
     total = session.scalar(
         select(func.count()).select_from(ResearcherMetrics).where(cond))
     rows = session.execute(
@@ -31,7 +34,7 @@ def ranking(session, sort="fwci_mean", min_works=5, page=1):
         .offset((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
     ).all()
-    return rows, total
+    return rows, total, total_all
 
 
 def researcher_detail(session, openalex_id, today=None):

@@ -13,9 +13,10 @@ def test_ranking_page_default(client):
     resp = client.get("/")
     assert resp.status_code == 200
     body = resp.text
-    assert "Taro Yamada" in body
-    assert "Ichiro Tanaka" not in body  # works<5は既定で除外
-    assert body.index("Taro Yamada") < body.index("Hanako Suzuki")  # NULL FWCI末尾
+    assert "Ichiro Tanaka" in body  # 既定min_works=1で全員表示
+    assert body.index("Ichiro Tanaka") < body.index("Taro Yamada")  # fwci 9.9先頭
+    assert body.index("Taro Yamada") < body.index("Hanako Suzuki")  # NULL末尾
+    assert "全3人中 3人を表示" in body
     assert "最終同期: 2026-07-02" in body
     assert "OpenAlex収録分に基づく" in body
 
@@ -23,7 +24,25 @@ def test_ranking_page_default(client):
 def test_ranking_sort_and_min_works(client):
     body = client.get("/?sort=total_citations&min_works=0").text
     assert body.index("Hanako Suzuki") < body.index("Taro Yamada")
-    assert "Ichiro Tanaka" in body
+    body5 = client.get("/?min_works=5").text
+    assert "全3人中 2人を表示" in body5
+    assert "Ichiro Tanaka" not in body5
+
+
+def test_ranking_fractional_sort_and_top1_column(client):
+    body = client.get("/?sort=fractional_citations&min_works=0").text
+    assert body.index("Hanako Suzuki") < body.index("Taro Yamada")  # 300>120.5
+    assert "top1%" in body
+
+
+def test_researcher_detail_new_metrics(client):
+    body = client.get("/researchers/A1").text
+    assert "国際共著率" in body and "50%" in body
+    assert "産学連携率" in body and "10%" in body
+    assert "Health Informatics" in body
+    assert "ユニーク共著者" in body and "42" in body
+    assert "i10指数" in body and "150" in body
+    assert "120.50" in body  # 被引用(補正)
 
 
 def test_ranking_invalid_params_fall_back(client):

@@ -11,30 +11,38 @@ def _session(path):
 
 def test_ranking_default_filters_and_sorts(seeded_db_path):
     with _session(seeded_db_path) as s:
-        rows, total = ranking(s)
+        rows, total, total_all = ranking(s)
     ids = [r.Researcher.openalex_id for r in rows]
-    assert ids == ["A1", "A2"]  # A3はworks<5で除外、NULL FWCIは末尾
-    assert total == 2
+    assert ids == ["A3", "A1", "A2"]  # 既定min_works=1、NULL FWCIは末尾
+    assert total == 3
+    assert total_all == 3
+
+
+def test_ranking_min_works_five(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        rows, total, total_all = ranking(s, min_works=5)
+    assert [r.Researcher.openalex_id for r in rows] == ["A1", "A2"]
+    assert total == 2 and total_all == 3
 
 
 def test_ranking_min_works_zero_and_sort_switch(seeded_db_path):
     with _session(seeded_db_path) as s:
-        rows, total = ranking(s, min_works=0)
+        rows, total, total_all = ranking(s, min_works=0)
         assert [r.Researcher.openalex_id for r in rows] == ["A3", "A1", "A2"]
         assert total == 3
-        rows, _ = ranking(s, sort="total_citations", min_works=0)
+        rows, _, _ = ranking(s, sort="total_citations", min_works=0)
         assert [r.Researcher.openalex_id for r in rows][0] == "A2"
 
 
 def test_ranking_invalid_sort_falls_back(seeded_db_path):
     with _session(seeded_db_path) as s:
-        rows, _ = ranking(s, sort="evil'; DROP TABLE works;--", min_works=0)
+        rows, _, _ = ranking(s, sort="evil'; DROP TABLE works;--", min_works=0)
     assert [r.Researcher.openalex_id for r in rows] == ["A3", "A1", "A2"]
 
 
 def test_ranking_pagination(seeded_db_path):
     with _session(seeded_db_path) as s:
-        rows, total = ranking(s, min_works=0, page=2)
+        rows, total, total_all = ranking(s, min_works=0, page=2)
     assert rows == [] and total == 3
 
 
@@ -70,8 +78,9 @@ def test_last_synced(seeded_db_path):
     ("total_citations", "A2"),    # 900
     ("top10pct_count", "A1"),     # 4
     ("works_count_3y", "A1"),     # 10
+    ("fractional_citations", "A2"),  # 300.0
 ])
 def test_ranking_all_sort_keys(seeded_db_path, sort_key, expected_first):
     with _session(seeded_db_path) as s:
-        rows, _ = ranking(s, sort=sort_key, min_works=0)
+        rows, _, _ = ranking(s, sort=sort_key, min_works=0)
     assert rows[0].Researcher.openalex_id == expected_first
