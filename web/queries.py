@@ -63,7 +63,7 @@ def search(session, q, limit=200):
                    ResearcherMetrics.researcher_id == Researcher.openalex_id)
         .where(or_(Researcher.display_name.ilike(pattern),
                    Researcher.name_ja.ilike(pattern)))
-        .order_by(ResearcherMetrics.fwci_mean.desc(), Researcher.openalex_id)
+        .order_by(ResearcherMetrics.fwci_total.desc(), Researcher.openalex_id)
         .limit(limit)
     ).all()
 
@@ -90,7 +90,7 @@ def metric_ranks(session, researcher_id):
     ranks: dict[str, tuple[int, int]] = {}
     for key, col in RANK_METRICS.items():
         value = getattr(own, key)
-        if value is None:
+        if value is None or value == 0:
             continue
         higher = session.scalar(
             select(func.count()).select_from(ResearcherMetrics)

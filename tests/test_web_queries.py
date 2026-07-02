@@ -107,7 +107,7 @@ def test_metric_ranks(seeded_db_path):
         ranks = metric_ranks(s, "A2")
         # 母数はworks>=1の3人
         assert ranks["total_citations"] == (1, 3)   # 900は最大
-        assert ranks["fwci_total"] == (3, 3)        # 0は最下位
+        assert "fwci_total" not in ranks            # 値0は順位非表示
         assert "fwci_mean" not in ranks             # 本人値NULLは非表示
         ranks1 = metric_ranks(s, "A1")
         assert ranks1["fwci_mean"] == (2, 3)        # 9.9(A3) > 3.5(A1) > NULL
@@ -118,3 +118,18 @@ def test_metric_ranks_outside_population(seeded_db_path):
     with _session(seeded_db_path) as s:
         assert metric_ranks(s, "A4") is None    # metrics行なし
         assert metric_ranks(s, "NOPE") is None
+
+
+def test_metric_ranks_ties_share_rank(seeded_db_path):
+    from db.models import Researcher, ResearcherMetrics
+    with _session(seeded_db_path) as s:
+        s.add(Researcher(openalex_id="A9", display_name="Tie Guy", h_index=1,
+                         works_count=5, raw_json="{}", updated_at=""))
+        s.add(ResearcherMetrics(researcher_id="A9", works_count_3y=5,
+                                total_citations=500, computed_at=""))  # A1と同値
+        s.commit()
+        r1 = metric_ranks(s, "A1")
+        r9 = metric_ranks(s, "A9")
+        # A2(900)が1位、A1とA9は500で同率2位
+        assert r1["total_citations"] == (2, 4)
+        assert r9["total_citations"] == (2, 4)

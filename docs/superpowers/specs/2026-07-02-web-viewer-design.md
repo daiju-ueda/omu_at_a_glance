@@ -43,7 +43,7 @@ deploy/
 
 - `researcher_metrics` × `researchers` を JOIN
 - クエリパラメタ:
-  - `sort`: `fwci_mean`（デフォルト） | `total_citations` | `top10pct_count` | `works_count_3y` | `fractional_citations`。降順固定。不正値はデフォルトにフォールバック
+  - `sort`: `fwci_total`（デフォルト。2026-07-02にfwci_meanから変更、経緯は2026-07-02-fwci-total-ranks-design.md） | `total_citations` | `top10pct_count` | `works_count_3y` | `fractional_citations`。降順固定。不正値はデフォルトにフォールバック
   - `min_works`: 最低論文数フィルタ。デフォルト1。0〜1,000,000の整数、不正値・範囲外は1
   - `page`: 1始まり、100件/ページ。非数値・1未満・1,000,000超は1にフォールバック（最終ページ超は空リスト表示、500は出さない）
 - 表示列: 順位、氏名（詳細へリンク）、3年論文数、総被引用数、被引用(補正)、FWCI平均、FWCI中央値、top10%論文数、top1%論文数、筆頭数、責任著者数
@@ -65,7 +65,7 @@ deploy/
 
 ## 表示上の設計判断
 
-- デフォルトソートは生被引用数でなく **FWCI平均**（分野バイアス対策。データ基盤設計書の方針を踏襲）
+- デフォルトソートは生被引用数でなく **FWCI合計**（当初はFWCI平均、2026-07-02変更）（分野バイアス対策。データ基盤設計書の方針を踏襲）
 - 全ページ共通フッター: 「OpenAlex収録分に基づく（直近3年ローリング）・最終同期: YYYY-MM-DD」— 最終同期日は `sync_state` の `last_synced_at`（works）から取得。「全業績」と断定する表現は使わない
 - FWCI等の欠損値は「–」表示。FWCIは小数2桁丸め
 - UIラベルは日本語。氏名は Phase 1 ではローマ字（`display_name`）、Phase 2 以降 `name_ja` があれば優先表示（テンプレートは `name_ja or display_name` で最初から対応）
