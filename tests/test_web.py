@@ -225,3 +225,9 @@ def test_departments_page(client):
 def test_researcher_detail_shows_department(client):
     body = client.get("/researchers/A1").text
     assert "大学院医学研究科" in body and "教授" in body
+
+
+def test_alias_redirects_to_canonical(client):
+    resp = client.get("/researchers/A1b", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/researchers/A1"

@@ -124,3 +124,36 @@ def test_compute_metrics():
 
         compute_metrics(s, TODAY)                   # 洗い替え・冪等
         assert s.query(ResearcherMetrics).count() == 3
+
+
+def test_compute_metrics_canonicalizes_aliases():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add_all([_researcher("A1"), _researcher("A2")])
+        alias = _researcher("A1b")
+        alias.canonical_id = "A1"
+        s.add(alias)
+        s.add_all([
+            _work("W1", "2024-01-01", 10, 2.0, True),
+            _work("W2", "2024-02-01", 4, 1.0, False),
+            _work("W3", "2024-03-01", 6, None, False),
+        ])
+        s.add_all([
+            _auth("W1", "A1", position="first", corresponding=True),
+            _auth("W2", "A1b"),                 # エイリアスの業績
+            _auth("W3", "A1"),
+            _auth("W3", "A1b", position="first"),  # 同一workに両IDが載る稀ケース
+            _auth("W1", "A2"),
+        ])
+        s.commit()
+
+        n = compute_metrics(s, TODAY)
+        assert n == 2                       # A1とA2のみ（A1bは行なし）
+        assert s.get(ResearcherMetrics, "A1b") is None
+        m1 = s.get(ResearcherMetrics, "A1")
+        assert m1.works_count_3y == 3       # W1+W2+W3（W3は1回だけ）
+        assert m1.total_citations == 20
+        assert m1.first_author_count == 2   # W1 + W3（エイリアス側first→OR）
+        assert m1.corresponding_count == 1
+        m2 = s.get(ResearcherMetrics, "A2")
+        assert m2.unique_coauthors == 1     # A1bはA1に畳まれ、A1のみ

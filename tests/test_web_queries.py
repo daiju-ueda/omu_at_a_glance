@@ -160,3 +160,24 @@ def test_metric_ranks_ties_share_rank(seeded_db_path):
         # A2(900)が1位、A1とA9は500で同率2位
         assert r1["total_citations"] == (2, 4)
         assert r9["total_citations"] == (2, 4)
+
+
+def test_search_excludes_aliases(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        rows = search(s, "yamada")
+        assert [r.Researcher.openalex_id for r in rows] == ["A1"]
+
+
+def test_detail_includes_alias_works_once(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        _, _, works = researcher_detail(s, "A1")
+        ids = [row.Work.openalex_id for row in works]
+        assert ids == ["W1", "W3"]      # W3はエイリアス行があっても1回
+
+
+def test_detail_alias_role_merged_deterministically(seeded_db_path):
+    # W3はA1(middle)とA1b(first)の両方が著者 → firstが表示される
+    with _session(seeded_db_path) as s:
+        _, _, works = researcher_detail(s, "A1")
+        w3 = next(row for row in works if row.Work.openalex_id == "W3")
+        assert w3.Authorship.author_position == "first"

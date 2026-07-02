@@ -160,7 +160,8 @@ def match_roster(session) -> int:
     kanji_index: dict[str, set[str]] = defaultdict(set)
     for rid, display_name, name_ja, is_official in session.execute(
             select(Researcher.openalex_id, Researcher.display_name,
-                   Researcher.name_ja, Researcher.is_official_roster)):
+                   Researcher.name_ja, Researcher.is_official_roster)
+            .where(Researcher.canonical_id.is_(None))):
         name_index[normalize_name(display_name)].add(rid)
         if name_ja and (rid in kaken_named or is_official):
             kanji_index[name_ja].add(rid)

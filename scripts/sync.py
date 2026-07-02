@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy.orm import Session
 
 from collector.config import get_kaken_appid
+from collector.dedup import apply_dedup
 from collector.kaken import KakenAuthError, KakenClient, match_members, sync_kaken
 from collector.metrics import compute_metrics
 from collector.openalex import OpenAlexClient
@@ -35,6 +36,12 @@ def main() -> None:
     with Session(engine) as session:
         n_a = sync_authors(session, client, today=today)
         n_w = sync_works(session, client, today=today)
+        try:
+            n_dedup = apply_dedup(session, today=today)
+            logger.info("dedup: aliases=%d", n_dedup)
+        except Exception:
+            session.rollback()
+            logger.exception("dedupに失敗（他ステージは継続）")
         appid = get_kaken_appid()
         if appid:
             try:
@@ -42,8 +49,10 @@ def main() -> None:
                 n_match = match_members(session)
                 logger.info("kaken: grants=%d matched=%d", n_k, n_match)
             except KakenAuthError:
+                session.rollback()
                 logger.warning("KAKEN appidが無効のためスキップ（有効化を待って再実行）")
             except Exception:
+                session.rollback()
                 logger.exception("KAKEN同期に失敗（他ステージは継続）")
         else:
             logger.warning("KAKEN_APPID未設定のためKAKEN同期をスキップ")
@@ -52,6 +61,7 @@ def main() -> None:
             n_rm = match_roster(session)
             logger.info("roster: %d人 matched=%d", n_r, n_rm)
         except Exception:
+            session.rollback()
             logger.exception("roster同期に失敗（他ステージは継続）")
         n_m = compute_metrics(session, today)
         logger.info("done: authors=%d works=%d metrics=%d", n_a, n_w, n_m)

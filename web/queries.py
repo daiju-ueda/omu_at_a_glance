@@ -51,13 +51,34 @@ def researcher_detail(session, openalex_id, today=None):
         return None
     metrics = session.get(ResearcherMetrics, openalex_id)
     start = window_start(today or datetime.date.today())
-    works = session.execute(
+    # Fetch works for both canonical and aliases, deduplicating by work_id
+    author_ids = [openalex_id] + list(session.scalars(
+        select(Researcher.openalex_id)
+        .where(Researcher.canonical_id == openalex_id)))
+    raw_works = session.execute(
         select(Work, Authorship)
         .join(Authorship, Authorship.work_id == Work.openalex_id)
-        .where(Authorship.author_id == openalex_id,
+        .where(Authorship.author_id.in_(author_ids),
                Work.publication_date >= start)
         .order_by(Work.cited_by_count.desc(), Work.openalex_id)
     ).all()
+    # 同一workに正準・エイリアス両方の著者行がある場合は
+    # metricsのOR集計に合わせて first > corresponding を優先表示
+    best_by_work: dict[str, object] = {}
+    order: list[str] = []
+    for row in raw_works:
+        work_id = row.Work.openalex_id
+        if work_id not in best_by_work:
+            best_by_work[work_id] = row
+            order.append(work_id)
+            continue
+        current = best_by_work[work_id]
+        def _rank(r):
+            return (r.Authorship.author_position == "first",
+                    bool(r.Authorship.is_corresponding))
+        if _rank(row) > _rank(current):
+            best_by_work[work_id] = row
+    works = [best_by_work[w] for w in order]
     return researcher, metrics, works
 
 
@@ -67,7 +88,8 @@ def search(session, q, limit=200):
         select(Researcher, ResearcherMetrics)
         .outerjoin(ResearcherMetrics,
                    ResearcherMetrics.researcher_id == Researcher.openalex_id)
-        .where(or_(Researcher.display_name.ilike(pattern),
+        .where(Researcher.canonical_id.is_(None),
+               or_(Researcher.display_name.ilike(pattern),
                    Researcher.name_ja.ilike(pattern)))
         .order_by(ResearcherMetrics.fwci_total.desc(), Researcher.openalex_id)
         .limit(limit)

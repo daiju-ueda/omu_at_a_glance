@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -142,6 +142,10 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     @app.get("/researchers/{openalex_id}", response_class=HTMLResponse)
     def researcher_page(request: Request, openalex_id: str):
         with Session(engine) as session:
+            researcher = session.get(Researcher, openalex_id)
+            if researcher is not None and researcher.canonical_id:
+                return RedirectResponse(
+                    f"/researchers/{researcher.canonical_id}", status_code=302)
             result = queries.researcher_detail(session, openalex_id)
             ranks = queries.metric_ranks(session, openalex_id)
             synced = queries.last_synced(session)
@@ -197,7 +201,8 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             matched = (sum(item["members"] for item in ranked)
                        + sum(item["members"] for item in small))
             total_count = session.scalar(
-                select(func.count()).select_from(Researcher))
+                select(func.count()).select_from(Researcher)
+                .where(Researcher.canonical_id.is_(None)))
             synced = queries.last_synced(session)
         return templates.TemplateResponse(request, "departments.html", {
             "ranked": ranked, "small": small, "matched": matched,
