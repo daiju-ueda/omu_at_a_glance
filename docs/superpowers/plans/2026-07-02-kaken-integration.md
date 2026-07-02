@@ -1137,7 +1137,7 @@ curl -s "https://kaken.nii.ac.jp/opensearch/?appid=$(grep KAKEN_APPID .env | cut
 - [ ] **Step 2: .env 作成（未作成の場合）**
 
 ```bash
-echo "KAKEN_APPID=<redacted-appid>" > .env
+echo "KAKEN_APPID=<発行されたappid>" > .env
 ```
 
 - [ ] **Step 3: 実XMLの形状照合**
