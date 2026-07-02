@@ -164,10 +164,9 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             rid = raw_id.strip()
             if rid and rid not in id_list:
                 id_list.append(rid)
-        id_list = id_list[:4]
         with Session(engine) as session:
             synced = queries.last_synced(session)
-            entries = queries.compare(session, id_list)
+            entries = queries.compare(session, id_list)[:4]
         if len(entries) < 2:
             return templates.TemplateResponse(request, "compare.html", {
                 "pairs": [], "groups": [], "subfield_warning": False,

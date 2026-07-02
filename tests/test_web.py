@@ -152,3 +152,10 @@ def test_listing_pages_have_compare_controls(client):
     assert 'id="compare-bar"' in ranking and "/static/compare.js" in ranking
     search = client.get("/search?q=yama").text
     assert 'class="cmp"' in search and 'data-id="A1"' in search
+
+
+def test_compare_cap_applies_after_unknown_filter(client):
+    body = client.get("/compare?ids=A1,BOGUS,A2,A3,A4").text
+    # 不明ID除去後に4件へ切り詰めるので、A4（有効な4人目）は残る
+    assert "佐藤次郎" in body
+    assert "Ichiro Tanaka" in body
