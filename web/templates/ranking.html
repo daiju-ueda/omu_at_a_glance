@@ -14,6 +14,7 @@
   <th><a href="/?sort=works_count_3y&min_works={{ min_works }}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
   <th><a href="/?sort=total_citations&min_works={{ min_works }}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
   <th><a href="/?sort=fractional_citations&min_works={{ min_works }}">被引用(補正){% if sort == 'fractional_citations' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=fwci_total&min_works={{ min_works }}">FWCI合計{% if sort == 'fwci_total' %} ▼{% endif %}</a></th>
   <th><a href="/?sort=fwci_mean&min_works={{ min_works }}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
   <th>FWCI中央値</th>
   <th><a href="/?sort=top10pct_count&min_works={{ min_works }}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
@@ -32,6 +33,7 @@
   <td>{{ m.works_count_3y }}</td>
   <td>{{ m.total_citations }}</td>
   <td>{{ m.fractional_citations|fmt }}</td>
+  <td>{{ m.fwci_total|fmt }}</td>
   <td>{{ m.fwci_mean|fmt }}</td>
   <td>{{ m.fwci_median|fmt }}</td>
   <td>{{ m.top10pct_count }}</td>

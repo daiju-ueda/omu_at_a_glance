@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from db.models import get_engine
-from web.queries import compare, last_synced, ranking, researcher_detail, search
+from web.queries import compare, last_synced, metric_ranks, ranking, researcher_detail, search
 
 
 def _session(path):
@@ -13,7 +13,7 @@ def test_ranking_default_filters_and_sorts(seeded_db_path):
     with _session(seeded_db_path) as s:
         rows, total, total_all = ranking(s)
     ids = [r.Researcher.openalex_id for r in rows]
-    assert ids == ["A3", "A1", "A2"]  # 既定min_works=1、NULL FWCIは末尾
+    assert ids == ["A1", "A3", "A2"]  # 既定=fwci_total降順: 35.0, 19.8, 0
     assert total == 3
     assert total_all == 3
 
@@ -28,7 +28,7 @@ def test_ranking_min_works_five(seeded_db_path):
 def test_ranking_min_works_zero_and_sort_switch(seeded_db_path):
     with _session(seeded_db_path) as s:
         rows, total, total_all = ranking(s, min_works=0)
-        assert [r.Researcher.openalex_id for r in rows] == ["A3", "A1", "A2"]
+        assert [r.Researcher.openalex_id for r in rows] == ["A1", "A3", "A2"]
         assert total == 3
         rows, _, _ = ranking(s, sort="total_citations", min_works=0)
         assert [r.Researcher.openalex_id for r in rows][0] == "A2"
@@ -37,7 +37,7 @@ def test_ranking_min_works_zero_and_sort_switch(seeded_db_path):
 def test_ranking_invalid_sort_falls_back(seeded_db_path):
     with _session(seeded_db_path) as s:
         rows, _, _ = ranking(s, sort="evil'; DROP TABLE works;--", min_works=0)
-    assert [r.Researcher.openalex_id for r in rows] == ["A3", "A1", "A2"]
+    assert [r.Researcher.openalex_id for r in rows] == ["A1", "A3", "A2"]
 
 
 def test_ranking_pagination(seeded_db_path):
@@ -80,6 +80,7 @@ def test_last_synced(seeded_db_path):
     ("works_count_3y", "A1"),     # 10
     ("fractional_citations", "A2"),  # 300.0
     ("kaken_total_amount", "A1"),  # 75,000,000
+    ("fwci_total", "A1"),  # 35.0
 ])
 def test_ranking_all_sort_keys(seeded_db_path, sort_key, expected_first):
     with _session(seeded_db_path) as s:
@@ -99,3 +100,36 @@ def test_compare_outerjoin_and_empty(seeded_db_path):
         assert rows[0].Researcher.display_name == "Jiro Sato"
         assert rows[0].ResearcherMetrics is None
         assert compare(s, []) == []
+
+
+def test_metric_ranks(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        ranks = metric_ranks(s, "A2")
+        # 母数はworks>=1の3人
+        assert ranks["total_citations"] == (1, 3)   # 900は最大
+        assert "fwci_total" not in ranks            # 値0は順位非表示
+        assert "fwci_mean" not in ranks             # 本人値NULLは非表示
+        ranks1 = metric_ranks(s, "A1")
+        assert ranks1["fwci_mean"] == (2, 3)        # 9.9(A3) > 3.5(A1) > NULL
+        assert ranks1["kaken_total_amount"] == (1, 3)
+
+
+def test_metric_ranks_outside_population(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        assert metric_ranks(s, "A4") is None    # metrics行なし
+        assert metric_ranks(s, "NOPE") is None
+
+
+def test_metric_ranks_ties_share_rank(seeded_db_path):
+    from db.models import Researcher, ResearcherMetrics
+    with _session(seeded_db_path) as s:
+        s.add(Researcher(openalex_id="A9", display_name="Tie Guy", h_index=1,
+                         works_count=5, raw_json="{}", updated_at=""))
+        s.add(ResearcherMetrics(researcher_id="A9", works_count_3y=5,
+                                total_citations=500, computed_at=""))  # A1と同値
+        s.commit()
+        r1 = metric_ranks(s, "A1")
+        r9 = metric_ranks(s, "A9")
+        # A2(900)が1位、A1とA9は500で同率2位
+        assert r1["total_citations"] == (2, 4)
+        assert r9["total_citations"] == (2, 4)

@@ -15,11 +15,12 @@ SORT_COLUMNS = {
     "works_count_3y": ResearcherMetrics.works_count_3y,
     "fractional_citations": ResearcherMetrics.fractional_citations,
     "kaken_total_amount": ResearcherMetrics.kaken_total_amount,
+    "fwci_total": ResearcherMetrics.fwci_total,
 }
 
 
-def ranking(session, sort="fwci_mean", min_works=1, page=1):
-    col = SORT_COLUMNS.get(sort, ResearcherMetrics.fwci_mean)
+def ranking(session, sort="fwci_total", min_works=1, page=1):
+    col = SORT_COLUMNS.get(sort, ResearcherMetrics.fwci_total)
     cond = ResearcherMetrics.works_count_3y >= min_works
     total_all = session.scalar(
         select(func.count()).select_from(ResearcherMetrics))
@@ -62,9 +63,40 @@ def search(session, q, limit=200):
                    ResearcherMetrics.researcher_id == Researcher.openalex_id)
         .where(or_(Researcher.display_name.ilike(pattern),
                    Researcher.name_ja.ilike(pattern)))
-        .order_by(ResearcherMetrics.fwci_mean.desc(), Researcher.openalex_id)
+        .order_by(ResearcherMetrics.fwci_total.desc(), Researcher.openalex_id)
         .limit(limit)
     ).all()
+
+
+RANK_METRICS = {
+    "works_count_3y": ResearcherMetrics.works_count_3y,
+    "total_citations": ResearcherMetrics.total_citations,
+    "fractional_citations": ResearcherMetrics.fractional_citations,
+    "fwci_total": ResearcherMetrics.fwci_total,
+    "fwci_mean": ResearcherMetrics.fwci_mean,
+    "top10pct_count": ResearcherMetrics.top10pct_count,
+    "top1pct_count": ResearcherMetrics.top1pct_count,
+    "kaken_total_amount": ResearcherMetrics.kaken_total_amount,
+}
+
+
+def metric_ranks(session, researcher_id):
+    own = session.get(ResearcherMetrics, researcher_id)
+    if own is None or own.works_count_3y < 1:
+        return None
+    population = ResearcherMetrics.works_count_3y >= 1
+    total = session.scalar(
+        select(func.count()).select_from(ResearcherMetrics).where(population))
+    ranks: dict[str, tuple[int, int]] = {}
+    for key, col in RANK_METRICS.items():
+        value = getattr(own, key)
+        if value is None or value == 0:
+            continue
+        higher = session.scalar(
+            select(func.count()).select_from(ResearcherMetrics)
+            .where(population, col > value))
+        ranks[key] = (higher + 1, total)
+    return ranks
 
 
 def compare(session, ids):

@@ -84,6 +84,7 @@ def test_compute_metrics():
         assert m1.total_citations == 120
         assert m1.fwci_mean == 1.5
         assert m1.fwci_median == 1.5
+        assert m1.fwci_total == 3.0  # 2.0 + 1.0（W4のNULLは除外）
         assert m1.top10pct_count == 1
         assert m1.first_author_count == 1
         assert m1.corresponding_count == 1
@@ -107,6 +108,7 @@ def test_compute_metrics():
         m2 = s.get(ResearcherMetrics, "A2")         # 論文ゼロ
         assert m2.works_count_3y == 0
         assert m2.fwci_mean is None
+        assert m2.fwci_total == 0
         assert m2.fractional_works == 0
         assert m2.avg_authors is None
         assert m2.intl_collab_rate is None

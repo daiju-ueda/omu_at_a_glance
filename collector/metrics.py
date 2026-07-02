@@ -73,6 +73,7 @@ def compute_metrics(session, today: datetime.date) -> int:
             total_citations=sum(r.cited_by_count for r in items),
             fwci_mean=round(statistics.mean(fwcis), 4) if fwcis else None,
             fwci_median=round(statistics.median(fwcis), 4) if fwcis else None,
+            fwci_total=round(sum(fwcis), 4) if fwcis else 0,
             top10pct_count=sum(1 for r in items if r.is_top10pct),
             top1pct_count=sum(1 for r in items if r.is_top1pct),
             first_author_count=sum(

@@ -64,6 +64,7 @@ class ResearcherMetrics(Base):
     total_citations: Mapped[int] = mapped_column(Integer, default=0)
     fwci_mean: Mapped[float | None] = mapped_column(Float, nullable=True)
     fwci_median: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fwci_total: Mapped[float] = mapped_column(Float, default=0)
     top10pct_count: Mapped[int] = mapped_column(Integer, default=0)
     first_author_count: Mapped[int] = mapped_column(Integer, default=0)
     corresponding_count: Mapped[int] = mapped_column(Integer, default=0)
