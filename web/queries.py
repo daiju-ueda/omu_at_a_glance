@@ -67,6 +67,19 @@ def search(session, q, limit=200):
     ).all()
 
 
+def compare(session, ids):
+    if not ids:
+        return []
+    rows = session.execute(
+        select(Researcher, ResearcherMetrics)
+        .outerjoin(ResearcherMetrics,
+                   ResearcherMetrics.researcher_id == Researcher.openalex_id)
+        .where(Researcher.openalex_id.in_(ids))
+    ).all()
+    by_id = {row.Researcher.openalex_id: row for row in rows}
+    return [by_id[i] for i in ids if i in by_id]
+
+
 def last_synced(session):
     state = session.get(SyncState, "works")
     return state.last_synced_at if state else None

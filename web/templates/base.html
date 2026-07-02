@@ -9,11 +9,16 @@
 <body>
 <header>
   <h1><a href="/">OMU研究者比較</a></h1>
-  <nav><a href="/">ランキング</a><a href="/search">検索</a></nav>
+  <nav><a href="/">ランキング</a><a href="/search">検索</a><a href="/compare">比較</a></nav>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
+<div id="compare-bar" hidden>
+  <span id="compare-names"></span>
+  <button id="compare-go" disabled>比較する</button>
+</div>
+<script src="/static/compare.js"></script>
 <footer>OpenAlex収録分に基づく（直近3年ローリング）{% if synced %}・最終同期: {{ synced }}{% endif %}
 <br>注: preprintと出版版が重複計上される場合がある。国際共著は著者の所属国ベース（二重所属を含む）。著者数上限で打ち切られた大規模共著論文は著者数補正の対象外。科研費はKAKEN収録分・配分額は課題総額（代表課題のみ合算・按分なし）。</footer>
 </body>
