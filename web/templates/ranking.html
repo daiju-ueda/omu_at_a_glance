@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-{% set qs_dept = ('&department=' ~ (department|urlencode) if department else '')|safe %}
 <h2>ランキング <span class="total">{% if department %}{{ department }}: {% endif %}全{{ total_all }}人中 {{ total }}人を表示</span></h2>
 <form method="get" class="controls">
   <input type="hidden" name="sort" value="{{ sort }}">
@@ -20,17 +19,17 @@
   <th></th>
   <th>#</th>
   <th>氏名</th>
-  <th><a href="/?sort=works_count_3y&min_works={{ min_works }}{{ qs_dept }}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=total_citations&min_works={{ min_works }}{{ qs_dept }}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fractional_citations&min_works={{ min_works }}{{ qs_dept }}">被引用(補正){% if sort == 'fractional_citations' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fwci_total&min_works={{ min_works }}{{ qs_dept }}">FWCI合計{% if sort == 'fwci_total' %} ▼{% endif %}</a></th>
-  <th><a href="/?sort=fwci_mean&min_works={{ min_works }}{{ qs_dept }}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=works_count_3y&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">論文数{% if sort == 'works_count_3y' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=total_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">総被引用{% if sort == 'total_citations' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=fractional_citations&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">被引用(補正){% if sort == 'fractional_citations' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=fwci_total&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI合計{% if sort == 'fwci_total' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=fwci_mean&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">FWCI平均{% if sort == 'fwci_mean' %} ▼{% endif %}</a></th>
   <th>FWCI中央値</th>
-  <th><a href="/?sort=top10pct_count&min_works={{ min_works }}{{ qs_dept }}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=top10pct_count&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">top10%{% if sort == 'top10pct_count' %} ▼{% endif %}</a></th>
   <th>top1%</th>
   <th>筆頭</th>
   <th>責任</th>
-  <th><a href="/?sort=kaken_total_amount&min_works={{ min_works }}{{ qs_dept }}">科研費総額{% if sort == 'kaken_total_amount' %} ▼{% endif %}</a></th>
+  <th><a href="/?sort=kaken_total_amount&min_works={{ min_works }}{% if department %}&department={{ department|urlencode }}{% endif %}">科研費総額{% if sort == 'kaken_total_amount' %} ▼{% endif %}</a></th>
 </tr></thead>
 <tbody>
 {% for row in rows %}
@@ -55,7 +54,7 @@
 </tbody>
 </table>
 <div class="pager">
-{% if page > 1 %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page - 1 }}{{ qs_dept }}">← 前へ</a>{% endif %}
-{% if page * page_size < total %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page + 1 }}{{ qs_dept }}">次へ →</a>{% endif %}
+{% if page > 1 %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page - 1 }}{% if department %}&department={{ department|urlencode }}{% endif %}">← 前へ</a>{% endif %}
+{% if page * page_size < total %}<a href="/?sort={{ sort }}&min_works={{ min_works }}&page={{ page + 1 }}{% if department %}&department={{ department|urlencode }}{% endif %}">次へ →</a>{% endif %}
 </div>
 {% endblock %}
