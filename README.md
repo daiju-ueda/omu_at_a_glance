@@ -14,7 +14,7 @@
 ## cron（推奨）
 
     # 週1回 全量同期（月曜 06:00、被引用数の更新も反映）
-    0 6 * * 1 cd /srv/apps/researchers && uv run python scripts/sync.py >> logs/sync.log 2>&1
+    0 6 * * 1 cd /srv/apps/researchers && /home/d-ueda/.local/bin/uv run python scripts/sync.py >> logs/sync.log 2>&1
 
 ## テスト
 

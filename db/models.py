@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Float, Integer, String, Text, create_engine
+from sqlalchemy import Boolean, Float, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -71,6 +71,8 @@ class SyncState(Base):
 
 
 def get_engine(path: str = "db/researchers.db"):
-    engine = create_engine(f"sqlite:///{path}")
+    engine = create_engine(f"sqlite:///{path}", connect_args={"timeout": 30})
     Base.metadata.create_all(engine)
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA journal_mode=WAL"))
     return engine

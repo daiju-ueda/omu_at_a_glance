@@ -60,6 +60,21 @@ def test_gives_up_after_max_retries():
     assert sleeps == [1, 2, 4, 8, 16]
 
 
+def test_retries_on_transport_error():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise httpx.ConnectError("boom")
+        return httpx.Response(200, json=PAGE2)
+
+    client = make_client(handler)
+    rows = list(client.paginate("works", "f:x"))
+    assert len(rows) == 1
+    assert calls["n"] == 3
+
+
 def test_count():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.params["per-page"] == "1"

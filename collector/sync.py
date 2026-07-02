@@ -1,6 +1,7 @@
 import datetime
 import logging
 
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.sqlite import insert
 
 from collector.parse import parse_author, parse_work
@@ -43,12 +44,19 @@ def sync_authors(session, client, today: datetime.date,
                  institution_id: str = INSTITUTION_ID) -> int:
     filter_str = f"last_known_institutions.id:{institution_id}"
     n = 0
+    seen_ids: set[str] = set()
     for rec in client.paginate("authors", filter_str, select=AUTHOR_SELECT):
-        _upsert(session, Researcher, parse_author(rec))
+        kw = parse_author(rec)
+        seen_ids.add(kw["openalex_id"])
+        _upsert(session, Researcher, kw)
         n += 1
         if n % COMMIT_EVERY == 0:
             session.commit()
             logger.info("authors: %d upserted", n)
+    n_del = session.execute(
+        delete(Researcher).where(Researcher.openalex_id.not_in(seen_ids))
+    ).rowcount
+    logger.info("authors: %d removed (no longer at institution)", n_del)
     _record_state(session, "authors", today)
     logger.info("authors sync done: %d", n)
     return n
@@ -56,11 +64,16 @@ def sync_authors(session, client, today: datetime.date,
 
 def sync_works(session, client, today: datetime.date,
                institution_id: str = INSTITUTION_ID) -> int:
+    start = window_start(today)
     filter_str = (f"institutions.id:{institution_id},"
-                  f"from_publication_date:{window_start(today)}")
+                  f"from_publication_date:{start}")
     n = 0
+    seen_ids: set[str] = set()
     for rec in client.paginate("works", filter_str, select=WORK_SELECT):
         work_kw, authorships = parse_work(rec)
+        work_id = work_kw["openalex_id"]
+        seen_ids.add(work_id)
+        session.execute(delete(Authorship).where(Authorship.work_id == work_id))
         _upsert(session, Work, work_kw)
         for a in authorships:
             _upsert(session, Authorship, a)
@@ -68,6 +81,15 @@ def sync_works(session, client, today: datetime.date,
         if n % COMMIT_EVERY == 0:
             session.commit()
             logger.info("works: %d upserted", n)
+    n_del_works = session.execute(
+        delete(Work).where(Work.publication_date >= start,
+                           Work.openalex_id.not_in(seen_ids))
+    ).rowcount
+    n_del_auth = session.execute(
+        delete(Authorship).where(Authorship.work_id.not_in(select(Work.openalex_id)))
+    ).rowcount
+    logger.info("works: %d removed (no longer in window), %d authorships removed (orphaned)",
+                n_del_works, n_del_auth)
     _record_state(session, "works", today)
     expected = client.count("works", filter_str)
     if expected != n:

@@ -23,7 +23,16 @@ class OpenAlexClient:
     def _get(self, endpoint: str, params: dict) -> dict:
         params = {**params, "mailto": self._mailto}
         for attempt in range(MAX_TRIES):
-            resp = self._http.get(f"/{endpoint}", params=params)
+            try:
+                resp = self._http.get(f"/{endpoint}", params=params)
+            except httpx.TransportError as exc:
+                if attempt == MAX_TRIES - 1:
+                    raise
+                wait = 2 ** attempt
+                logger.warning("OpenAlex %s -> %s, retry in %ss",
+                               endpoint, exc, wait)
+                self._sleep(wait)
+                continue
             if resp.status_code in RETRY_STATUSES:
                 if attempt == MAX_TRIES - 1:
                     break

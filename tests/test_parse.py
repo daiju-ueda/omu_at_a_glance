@@ -54,6 +54,14 @@ def test_parse_author_missing_fields():
     assert kw["h_index"] == 0
 
 
+def test_parse_author_explicit_null_fields():
+    kw = parse_author({
+        "id": "https://openalex.org/A1", "display_name": "X",
+        "works_count": None, "summary_stats": {"h_index": None}})
+    assert kw["h_index"] == 0
+    assert kw["works_count"] == 0
+
+
 def test_parse_work():
     work_kw, auths = parse_work(WORK)
     assert work_kw["openalex_id"] == "W4385564466"
@@ -78,3 +86,11 @@ def test_parse_work_missing_fields():
     assert work_kw["is_top10pct"] is False
     assert work_kw["venue"] is None
     assert auths == []
+
+
+def test_parse_work_explicit_null_fields():
+    work_kw, _ = parse_work({
+        "id": "https://openalex.org/W1", "title": "X",
+        "publication_date": "2024-01-01", "cited_by_count": None,
+        "authorships": []})
+    assert work_kw["cited_by_count"] == 0
