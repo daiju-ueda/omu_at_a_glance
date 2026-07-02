@@ -11,7 +11,7 @@
 <header>
   <h1><a href="/">OMU at a glance</a></h1>
   <span class="tagline">Osaka Metropolitan University · Research Metrics</span>
-  <nav><a href="/" {% if path == '/' %}class="current"{% endif %}>ランキング</a><a href="/search" {% if path == '/search' %}class="current"{% endif %}>検索</a><a href="/compare" {% if path == '/compare' %}class="current"{% endif %}>比較</a><a href="/departments" {% if path == '/departments' %}class="current"{% endif %}>部局</a></nav>
+  <nav><a href="/" {% if path == '/' %}class="current"{% endif %}>ランキング</a><a href="/search" {% if path == '/search' %}class="current"{% endif %}>検索</a><a href="/compare" {% if path == '/compare' %}class="current"{% endif %}>比較</a><a href="/departments" {% if path == '/departments' %}class="current"{% endif %}>部局</a><a href="/about" {% if path == '/about' %}class="current"{% endif %}>指標の説明</a></nav>
 </header>
 <main>
 {% block content %}{% endblock %}
@@ -22,7 +22,7 @@
 </div>
 <script src="/static/compare.js"></script>
 <footer>
-  <p class="foot-title">データについて</p>
+  <p class="foot-title"><a href="/about">データについて</a></p>
   <ul>
     <li>OpenAlex収録分に基づく（直近3年ローリング）{% if synced %}・最終同期: {{ synced }}{% endif %}</li>
     <li>注: preprintと出版版が重複計上される場合がある。</li>

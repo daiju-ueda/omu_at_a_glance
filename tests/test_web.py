@@ -310,3 +310,20 @@ def test_footer_is_list(client):
     body = client.get("/").text
     assert "データについて" in body
     assert body.count("<li>") >= 4  # 注記の文分割
+
+
+def test_about_page(client):
+    resp = client.get("/about")
+    assert resp.status_code == 200
+    body = resp.text
+    for heading in ("このサイトについて", "データソースと更新", "研究者の統合と名寄せ",
+                    "指標の定義", "学内順位の読み方", "限界"):
+        assert heading in body
+    assert "1.0が世界平均" in body
+    assert "著者数で割った" in body
+    assert "OpenAlex収録分に基づく" in body
+
+
+def test_about_nav_link(client):
+    body = client.get("/").text
+    assert 'href="/about"' in body
