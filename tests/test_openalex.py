@@ -48,12 +48,16 @@ def test_retries_on_429_then_succeeds():
 
 
 def test_gives_up_after_max_retries():
+    sleeps = []
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503)
 
-    client = make_client(handler)
+    client = OpenAlexClient(transport=httpx.MockTransport(handler),
+                            sleep_fn=sleeps.append)
     with pytest.raises(httpx.HTTPStatusError):
         list(client.paginate("works", "f:x"))
+    assert sleeps == [1, 2, 4, 8, 16]
 
 
 def test_count():

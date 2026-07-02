@@ -25,6 +25,8 @@ class OpenAlexClient:
         for attempt in range(MAX_TRIES):
             resp = self._http.get(f"/{endpoint}", params=params)
             if resp.status_code in RETRY_STATUSES:
+                if attempt == MAX_TRIES - 1:
+                    break
                 wait = 2 ** attempt
                 logger.warning("OpenAlex %s -> %s, retry in %ss",
                                endpoint, resp.status_code, wait)
