@@ -115,6 +115,19 @@ def _int_param(value, default, minimum=0):
     return parsed if minimum <= parsed <= MAX_PARAM else default
 
 
+def _bar_widths(rows, sort_key):
+    """ソート中の指標の値を、ページ内最大値比のバー幅%（2..100）に変換する"""
+    values = {}
+    for row in rows:
+        v = getattr(row.ResearcherMetrics, sort_key, None)
+        if isinstance(v, (int, float)) and v > 0:
+            values[row.Researcher.openalex_id] = v
+    if not values:
+        return {}
+    mx = max(values.values())
+    return {rid: max(2, round(v / mx * 100)) for rid, v in values.items()}
+
+
 def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     if not Path(db_path).exists():
         raise RuntimeError(
@@ -148,6 +161,7 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             "sort": sort_key, "min_works": mw, "page": pg,
             "page_size": queries.PAGE_SIZE, "synced": synced,
             "departments": departments, "department": dept,
+            "bars": _bar_widths(rows, sort_key),
         })
 
     @app.get("/researchers/{openalex_id}", response_class=HTMLResponse)
