@@ -201,7 +201,8 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             matched = (sum(item["members"] for item in ranked)
                        + sum(item["members"] for item in small))
             total_count = session.scalar(
-                select(func.count()).select_from(Researcher))
+                select(func.count()).select_from(Researcher)
+                .where(Researcher.canonical_id.is_(None)))
             synced = queries.last_synced(session)
         return templates.TemplateResponse(request, "departments.html", {
             "ranked": ranked, "small": small, "matched": matched,

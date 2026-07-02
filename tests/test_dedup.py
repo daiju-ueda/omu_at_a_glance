@@ -105,6 +105,37 @@ def test_cluster_with_multiple_orcids_dissolved(caplog):
         assert any("解散" in r.message for r in caplog.records)
 
 
+def test_kanji_only_names_never_merge():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        _setup(s, [_r("A1", "裕介 能島"), _r("A2", "克宏 本多")],
+               [_w("W1")], [_a("W1", "A1"), _a("W1", "A2")])
+        assert apply_dedup(s, TODAY) == 0
+        assert s.get(Researcher, "A1").canonical_id is None
+        assert s.get(Researcher, "A2").canonical_id is None
+
+
+def test_anonymous_and_single_token_names_never_merge():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        _setup(s, [_r("A1", "Anonymous", orcid="0-1"),
+                   _r("A2", "Anonymous", orcid="0-1"),
+                   _r("B1", "Kim", orcid="0-2"),
+                   _r("B2", "Kim", orcid="0-2")], [], [])
+        assert apply_dedup(s, TODAY) == 0
+
+
+def test_prior_merge_is_sticky_without_window_evidence():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        a1 = _r("A1", "Rin Kato", works_count=100)
+        a2 = _r("A2", "Rin Kato", works_count=5)
+        a2.canonical_id = "A1"          # 前回のマージ状態のみ（窓内証拠なし）
+        _setup(s, [a1, a2], [], [])
+        assert apply_dedup(s, TODAY) == 1
+        assert s.get(Researcher, "A2").canonical_id == "A1"
+
+
 def test_alias_attributes_handed_over_and_idempotent():
     engine = get_engine(":memory:")
     with Session(engine) as s:

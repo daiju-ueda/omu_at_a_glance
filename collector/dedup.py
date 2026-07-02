@@ -58,8 +58,26 @@ def apply_dedup(session, today: datetime.date | None = None) -> int:
             coauthor_cache[aid] = out
         return coauthor_cache[aid]
 
+    prior_pairs: list[tuple[str, str]] = [
+        (row.openalex_id, row.canonical_id)
+        for row in session.execute(
+            select(Researcher.openalex_id, Researcher.canonical_id)
+            .where(Researcher.canonical_id.is_not(None)))
+    ]
+    prior_by_group: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    id_to_name = {m.openalex_id: normalize_name(m.display_name)
+                  for m in members_all}
+    for alias_id, canon_id in prior_pairs:
+        name_a = id_to_name.get(alias_id)
+        name_c = id_to_name.get(canon_id)
+        if name_a and name_a == name_c:
+            prior_by_group[name_a].append((alias_id, canon_id))
+
     canonical_map: dict[str, str] = {}
     for name, members in groups.items():
+        # 空キー（漢字のみ等で正規化不能）やプレースホルダ名は同名の根拠にならない
+        if not name or len(name.split()) < 2 or "anonymous" in name:
+            continue
         if len(members) < 2:
             continue
         ids = [m.openalex_id for m in members]
@@ -75,6 +93,14 @@ def apply_dedup(session, today: datetime.date | None = None) -> int:
                         or (works_by_author[a] & works_by_author[b]) \
                         or len(coauthors(a) & coauthors(b)) >= COAUTHOR_OVERLAP_MIN:
                     uf.union(a, b)
+        # 過去のマージ状態も証拠として維持（sticky）。ORCID相違は常に優先
+        for alias_id, canon_id in prior_by_group.get(name, []):
+            if alias_id not in orcid_of or canon_id not in orcid_of:
+                continue
+            oa, ob = orcid_of[alias_id], orcid_of[canon_id]
+            if oa and ob and oa != ob:
+                continue
+            uf.union(alias_id, canon_id)
         clusters: dict[str, list] = defaultdict(list)
         for m in members:
             clusters[uf.find(m.openalex_id)].append(m)
@@ -103,6 +129,8 @@ def apply_dedup(session, today: datetime.date | None = None) -> int:
         canon = session.get(Researcher, canon_id)
         if alias is None or canon is None:
             continue
+        if alias.orcid and not canon.orcid:
+            canon.orcid = alias.orcid
         if alias.name_ja and not canon.name_ja:
             canon.name_ja = alias.name_ja
         if alias.department and not canon.department:
