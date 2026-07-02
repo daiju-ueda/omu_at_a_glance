@@ -295,3 +295,18 @@ def test_bar_widths_pure():
     assert bars["B"] == 2        # 最小2%
     assert "C" not in bars and "D" not in bars
     assert _bar_widths([], "fwci_total") == {}
+
+
+def test_detail_identity_and_sections(client):
+    body = client.get("/researchers/A1").text
+    assert 'class="identity"' in body
+    for heading in ("インパクト", "生産性", "連携・資金", "研究者指標・実績（全期間）"):
+        assert heading in body
+    assert 'class="metric-section"' in body
+    assert 'class="chip"' in body   # OpenAlex/ORCIDリンク
+
+
+def test_footer_is_list(client):
+    body = client.get("/").text
+    assert "データについて" in body
+    assert body.count("<li>") >= 4  # 注記の文分割
