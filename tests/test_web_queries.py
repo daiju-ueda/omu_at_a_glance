@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from db.models import get_engine
-from web.queries import last_synced, ranking, researcher_detail, search
+from web.queries import compare, last_synced, ranking, researcher_detail, search
 
 
 def _session(path):
@@ -85,3 +85,17 @@ def test_ranking_all_sort_keys(seeded_db_path, sort_key, expected_first):
     with _session(seeded_db_path) as s:
         rows, _, _ = ranking(s, sort=sort_key, min_works=0)
     assert rows[0].Researcher.openalex_id == expected_first
+
+
+def test_compare_preserves_order_and_skips_unknown(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        rows = compare(s, ["A3", "NOPE", "A1"])
+        assert [r.Researcher.openalex_id for r in rows] == ["A3", "A1"]
+
+
+def test_compare_outerjoin_and_empty(seeded_db_path):
+    with _session(seeded_db_path) as s:
+        rows = compare(s, ["A4"])
+        assert rows[0].Researcher.display_name == "Jiro Sato"
+        assert rows[0].ResearcherMetrics is None
+        assert compare(s, []) == []
