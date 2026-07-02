@@ -1,0 +1,18 @@
+[project]
+name = "omu-researchers"
+version = "0.1.0"
+description = "OMU researcher & publication data pipeline (OpenAlex)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "httpx==0.28.1",
+    "sqlalchemy==2.0.36",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["smoke: hits the real OpenAlex API (deselect with '-m \"not smoke\"')"]
