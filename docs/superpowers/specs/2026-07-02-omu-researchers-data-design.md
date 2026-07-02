@@ -40,7 +40,7 @@ researchers/
 │   ├── models.py        # SQLAlchemy モデル
 │   └── researchers.db   # SQLite（gitignore）
 ├── scripts/
-│   └── sync.py          # CLI: full / incremental sync（metrics再計算込み）
+│   └── sync.py          # CLI: 全量同期（metrics再計算込み）
 ├── tests/
 └── docs/
 ```
