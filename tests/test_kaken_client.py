@@ -3,7 +3,7 @@ import pytest
 
 from collector.kaken import KakenAuthError, KakenClient
 
-XML_OK = '<?xml version="1.0"?><grantAwards total="0"></grantAwards>'
+XML_OK = '<?xml version="1.0"?><grantAwards><totalResults>0</totalResults></grantAwards>'
 
 
 def make_client(handler):
@@ -19,10 +19,12 @@ def test_fetch_sends_appid_and_returns_xml():
         return httpx.Response(200, text=XML_OK)
 
     client = make_client(handler)
-    body = client.fetch({"kw": "大阪公立大学", "rw": 500, "st": 1})
+    body = client.fetch({"qe": "大阪公立大学", "rw": 500, "st": 1})
     assert body == XML_OK
     assert seen["appid"] == "APPID_X"
-    assert seen["kw"] == "大阪公立大学"
+    assert seen["qe"] == "大阪公立大学"
+    # format=xmlを付けない場合、KAKENはHTML検索画面を返す（実API照合で確認済み）
+    assert seen["format"] == "xml"
 
 
 def test_403_raises_auth_error_without_retry():

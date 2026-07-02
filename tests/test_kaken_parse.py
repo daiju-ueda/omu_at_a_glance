@@ -1,42 +1,63 @@
 import pytest
 from collector.kaken import parse_grants
 
-# 暫定fixture: KAKEN公開XMLの想定形状。Task 6で実レスポンスと照合し、
-# 違いがあればパーサとともにこのfixtureを実形状へ更新する
+# Task 6で実APIレスポンス（kaken.nii.ac.jp/opensearch/?format=xml&qe=...）と照合した実形状。
+# 暫定fixtureとの主な差分:
+# - 総件数は<grantAwards total="...">属性ではなく<totalResults>子要素
+# - <summary>はxml:lang="ja"とxml:lang="en"の2つが並ぶ（ja側を明示的に選ぶ必要あり）
+# - periodOfAwardの開始/終了年度は子要素ではなくsearchStartFiscalYear/searchEndFiscalYear属性
+# - カナは<nameKana>ではなく<familyName yomi="...">/<givenName yomi="...">属性
 XML = """<?xml version="1.0" encoding="UTF-8"?>
-<grantAwards total="2" start="1" pagesize="500">
-  <grantAward awardNumber="22K07777">
+<grantAwards>
+<totalResults>2</totalResults>
+<startIndex>1</startIndex>
+<itemsPerPage>500</itemsPerPage>
+  <grantAward id="KAKENHI-PROJECT-22K07777" recordSet="kakenhi" projectType="project" awardNumber="22K07777">
     <summary xml:lang="ja">
       <title>深層学習による画像診断支援</title>
-      <category>基盤研究(C)</category>
-      <institution>大阪公立大学</institution>
-      <periodOfAward>
-        <startFiscalYear>2022</startFiscalYear>
-        <endFiscalYear>2025</endFiscalYear>
+      <category path="000010" niiCode="10">基盤研究(C)</category>
+      <institution niiCode="383195" sequence="1">大阪公立大学</institution>
+      <periodOfAward searchStartFiscalYear="2022" searchEndFiscalYear="2025">
+        <startDate>2022-04-01</startDate>
+        <endDate estimated="false" nondisclosure="false">2026-03-31</endDate>
       </periodOfAward>
-      <member eradCode="40000001" role="principal_investigator">
-        <personalName>
+      <member sequence="1" eradCode="40000001" role="principal_investigator">
+        <personalName sequence="1">
           <fullName>山田 太郎</fullName>
-          <nameKana>ヤマダ タロウ</nameKana>
+          <familyName yomi="ヤマダ">山田</familyName>
+          <givenName yomi="タロウ">太郎</givenName>
         </personalName>
       </member>
-      <member eradCode="" role="co_investigator_buntan">
-        <personalName>
+      <member sequence="2" role="co_investigator_buntan">
+        <personalName sequence="1">
           <fullName>鈴木 花子</fullName>
-          <nameKana>スズキ ハナコ</nameKana>
+          <familyName yomi="スズキ">鈴木</familyName>
+          <givenName yomi="ハナコ">花子</givenName>
         </personalName>
       </member>
-      <overallAwardAmount>
+      <overallAwardAmount planned="false" sequence="1" caption="配分額">
+        <directCost>3500000</directCost>
+        <indirectCost>1050000</indirectCost>
+        <totalCost>4550000</totalCost>
+      </overallAwardAmount>
+    </summary>
+    <summary xml:lang="en">
+      <title>Deep learning assisted diagnostic imaging</title>
+      <category path="000010" niiCode="10">Grant-in-Aid for Scientific Research (C)</category>
+      <institution niiCode="383195" sequence="1">Osaka Metropolitan University</institution>
+      <overallAwardAmount planned="false" sequence="1" caption="Budget Amount">
+        <directCost>3500000</directCost>
+        <indirectCost>1050000</indirectCost>
         <totalCost>4550000</totalCost>
       </overallAwardAmount>
     </summary>
   </grantAward>
-  <grantAward awardNumber="23H99999">
+  <grantAward id="KAKENHI-PROJECT-23H99999" recordSet="kakenhi" projectType="project" awardNumber="23H99999">
     <summary xml:lang="ja">
       <title>不完全データ課題</title>
-      <institution>他大学</institution>
-      <member role="principal_investigator">
-        <personalName><fullName>田中 一郎</fullName></personalName>
+      <institution niiCode="99999" sequence="1">他大学</institution>
+      <member sequence="1" role="principal_investigator">
+        <personalName sequence="1"><fullName>田中 一郎</fullName></personalName>
       </member>
     </summary>
   </grantAward>
@@ -72,28 +93,29 @@ def test_parse_grants():
 
 def test_parse_grants_empty():
     entries, total = parse_grants(
-        '<?xml version="1.0"?><grantAwards total="0"></grantAwards>')
+        '<?xml version="1.0"?><grantAwards><totalResults>0</totalResults></grantAwards>')
     assert entries == [] and total == 0
 
 
 def test_parse_grants_rejects_entity_expansion():
     # defusedxml採用の確認（XXE/billion-laughs対策）
     evil = ('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]>'
-            '<grantAwards total="0">&a;</grantAwards>')
+            '<grantAwards><totalResults>0</totalResults>&a;</grantAwards>')
     with pytest.raises(Exception):
         parse_grants(evil)
 
 
 def test_parse_grants_skips_broken_entry_with_warning(caplog):
     xml = """<?xml version="1.0"?>
-<grantAwards total="2">
+<grantAwards>
+<totalResults>2</totalResults>
   <grantAward>
     <summary xml:lang="ja"><title>awardNumber無し</title></summary>
   </grantAward>
   <grantAward awardNumber="24K00001">
     <summary xml:lang="ja">
       <title>正常な課題</title>
-      <institution>大阪公立大学</institution>
+      <institution niiCode="383195" sequence="1">大阪公立大学</institution>
     </summary>
   </grantAward>
 </grantAwards>

@@ -23,6 +23,8 @@ BASE_URL = "https://kaken.nii.ac.jp"
 RETRY_STATUSES = {429, 500, 502, 503}
 MAX_TRIES = 6
 PAGE_SIZE_KAKEN = 500
+# 実XMLの<summary>はja/en両方を含むため、xml:lang="ja"のsummaryを明示的に選ぶ
+_JA_SUMMARY_XPATH = "summary[@{http://www.w3.org/XML/1998/namespace}lang='ja']"
 
 
 class KakenAuthError(Exception):
@@ -38,7 +40,8 @@ class KakenClient:
                                   transport=transport)
 
     def fetch(self, params: dict) -> str:
-        params = {**params, "appid": self._appid}
+        # format=xmlを付けない場合、KAKENはHTML検索画面を返す（実API照合で確認済み）
+        params = {"format": "xml", **params, "appid": self._appid}
         for attempt in range(MAX_TRIES):
             try:
                 resp = self._http.get("/opensearch/", params=params)
@@ -76,14 +79,16 @@ def _int_or_none(text):
 
 def parse_grants(xml_text: str) -> tuple[list[tuple[dict, list[dict]]], int]:
     root = _safe_fromstring(_strip_namespaces(xml_text))
-    total = _int_or_none(root.get("total")) or 0
+    # 総件数は<grantAwards total="...">属性ではなく<totalResults>子要素（実API照合で確認済み）
+    total = _int_or_none(root.findtext("totalResults")) or 0
     entries = []
     for ga in root.iter("grantAward"):
         try:
             award_id = ga.get("awardNumber") or ""
             if not award_id:
                 raise ValueError("awardNumber missing")
-            summary = ga.find("summary")
+            # <summary>はja/en両方が入るため、xml:lang="ja"を明示的に選ぶ
+            summary = ga.find(_JA_SUMMARY_XPATH)
             if summary is None:
                 raise ValueError("summary missing")
             period = summary.find("periodOfAward")
@@ -92,10 +97,11 @@ def parse_grants(xml_text: str) -> tuple[list[tuple[dict, list[dict]]], int]:
                 "title": (summary.findtext("title") or "").strip(),
                 "category": summary.findtext("category"),
                 "institution": (summary.findtext("institution") or "").strip(),
+                # 実APIではperiodOfAwardの子要素ではなく属性
                 "start_year": _int_or_none(
-                    period.findtext("startFiscalYear")) if period is not None else None,
+                    period.get("searchStartFiscalYear")) if period is not None else None,
                 "end_year": _int_or_none(
-                    period.findtext("endFiscalYear")) if period is not None else None,
+                    period.get("searchEndFiscalYear")) if period is not None else None,
                 "total_amount": _int_or_none(
                     summary.findtext("overallAwardAmount/totalCost")) or 0,
                 "raw_json": json.dumps(
@@ -107,13 +113,19 @@ def parse_grants(xml_text: str) -> tuple[list[tuple[dict, list[dict]]], int]:
                 if not name_kanji:
                     continue
                 erad = (m.get("eradCode") or "").strip()
-                kana = m.findtext("personalName/nameKana")
+                # 実APIには<nameKana>は無く、familyName/givenNameのyomi属性がカナ
+                family_el = m.find("personalName/familyName")
+                given_el = m.find("personalName/givenName")
+                family_kana = family_el.get("yomi") if family_el is not None else None
+                given_kana = given_el.get("yomi") if given_el is not None else None
+                kana = (f"{family_kana} {given_kana}"
+                        if family_kana and given_kana else None)
                 role = m.get("role") or ""
                 members.append({
                     "award_id": award_id,
                     "erad_id": erad or f"name:{name_kanji}",
                     "name_kanji": name_kanji,
-                    "name_kana": kana.strip() if kana else None,
+                    "name_kana": kana,
                     "role": ("principal" if "principal_investigator" in role
                              else "co_investigator"),
                 })
@@ -130,7 +142,8 @@ def sync_kaken(session, client, today: datetime.date,
     entries: list[tuple[dict, list[dict]]] = []
     st = 1
     while True:
-        xml_text = client.fetch({"kw": institution,
+        # kwは全文検索でノイズが多い（他機関の課題も拾う）。qe（研究機関）が正確
+        xml_text = client.fetch({"qe": institution,
                                  "rw": PAGE_SIZE_KAKEN, "st": st})
         page_entries, total = parse_grants(xml_text)
         entries.extend(page_entries)
