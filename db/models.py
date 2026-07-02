@@ -13,6 +13,9 @@ class Researcher(Base):
     orcid: Mapped[str | None] = mapped_column(String, nullable=True)
     h_index: Mapped[int] = mapped_column(Integer, default=0)
     works_count: Mapped[int] = mapped_column(Integer, default=0)
+    i10_index: Mapped[int] = mapped_column(Integer, default=0)
+    two_yr_mean_citedness: Mapped[float | None] = mapped_column(
+        Float, nullable=True)
     # Phase 2 (公式名簿) で埋める列。Phase 1 では NULL のまま
     name_ja: Mapped[str | None] = mapped_column(String, nullable=True)
     department: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -38,6 +41,9 @@ class Work(Base):
     topic: Mapped[str | None] = mapped_column(String, nullable=True)
     subfield: Mapped[str | None] = mapped_column(String, nullable=True)
     is_oa: Mapped[bool] = mapped_column(Boolean, default=False)
+    n_authors: Mapped[int] = mapped_column(Integer, default=0)
+    is_intl_collab: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_corp_collab: Mapped[bool] = mapped_column(Boolean, default=False)
     raw_json: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(String)
 
@@ -60,6 +66,18 @@ class ResearcherMetrics(Base):
     top10pct_count: Mapped[int] = mapped_column(Integer, default=0)
     first_author_count: Mapped[int] = mapped_column(Integer, default=0)
     corresponding_count: Mapped[int] = mapped_column(Integer, default=0)
+    top1pct_count: Mapped[int] = mapped_column(Integer, default=0)
+    fractional_works: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fractional_citations: Mapped[float | None] = mapped_column(
+        Float, nullable=True)
+    avg_authors: Mapped[float | None] = mapped_column(Float, nullable=True)
+    intl_collab_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    corp_collab_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    oa_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preprint_count: Mapped[int] = mapped_column(Integer, default=0)
+    dataset_software_count: Mapped[int] = mapped_column(Integer, default=0)
+    unique_coauthors: Mapped[int] = mapped_column(Integer, default=0)
+    top_subfield: Mapped[str | None] = mapped_column(String, nullable=True)
     computed_at: Mapped[str] = mapped_column(String)
 
 

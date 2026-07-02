@@ -5,7 +5,8 @@ AUTHOR = {
     "display_name": "Daiju Ueda",
     "orcid": "https://orcid.org/0000-0002-9181-7968",
     "works_count": 120,
-    "summary_stats": {"h_index": 25},
+    "summary_stats": {"h_index": 25, "i10_index": 100,
+                      "2yr_mean_citedness": 2.5},
     "updated_date": "2026-06-30T00:00:00",
 }
 
@@ -26,9 +27,15 @@ WORK = {
     "updated_date": "2026-06-01T00:00:00",
     "authorships": [
         {"author_position": "first", "is_corresponding": True,
-         "author": {"id": "https://openalex.org/A5023888391"}},
+         "author": {"id": "https://openalex.org/A5023888391"},
+         "countries": ["JP"],
+         "institutions": [{"id": "https://openalex.org/I4387152983",
+                           "type": "education"}]},
         {"author_position": "last", "is_corresponding": False,
-         "author": {"id": "https://openalex.org/A999"}},
+         "author": {"id": "https://openalex.org/A999"},
+         "countries": ["US"],
+         "institutions": [{"id": "https://openalex.org/I100",
+                           "type": "funder"}]},
     ],
 }
 
@@ -46,12 +53,16 @@ def test_parse_author():
     assert kw["h_index"] == 25
     assert kw["works_count"] == 120
     assert '"Daiju Ueda"' in kw["raw_json"]
+    assert kw["i10_index"] == 100
+    assert kw["two_yr_mean_citedness"] == 2.5
 
 
 def test_parse_author_missing_fields():
     kw = parse_author({"id": "https://openalex.org/A1", "display_name": "X"})
     assert kw["orcid"] is None
     assert kw["h_index"] == 0
+    assert kw["i10_index"] == 0
+    assert kw["two_yr_mean_citedness"] is None
 
 
 def test_parse_author_explicit_null_fields():
@@ -72,6 +83,9 @@ def test_parse_work():
     assert work_kw["is_top1pct"] is True and work_kw["is_top10pct"] is True
     assert work_kw["subfield"] == "Health Informatics"
     assert work_kw["is_oa"] is True
+    assert work_kw["n_authors"] == 2
+    assert work_kw["is_intl_collab"] is True   # USの共著者あり
+    assert work_kw["is_corp_collab"] is False  # companyなし
     assert len(auths) == 2
     assert auths[0] == {"work_id": "W4385564466", "author_id": "A5023888391",
                         "author_position": "first", "is_corresponding": True}
@@ -85,6 +99,9 @@ def test_parse_work_missing_fields():
     assert work_kw["fwci"] is None
     assert work_kw["is_top10pct"] is False
     assert work_kw["venue"] is None
+    assert work_kw["n_authors"] == 0
+    assert work_kw["is_intl_collab"] is False
+    assert work_kw["is_corp_collab"] is False
     assert auths == []
 
 
@@ -94,3 +111,41 @@ def test_parse_work_explicit_null_fields():
         "publication_date": "2024-01-01", "cited_by_count": None,
         "authorships": []})
     assert work_kw["cited_by_count"] == 0
+
+
+def test_parse_work_corporate_and_domestic():
+    rec = {
+        "id": "https://openalex.org/W9",
+        "title": "t",
+        "publication_date": "2024-01-01",
+        "authorships": [
+            {"author": {"id": "https://openalex.org/A1"},
+             "countries": ["JP"],
+             "institutions": [{"id": "https://openalex.org/I1",
+                               "type": "company"}]},
+            {"author": {"id": "https://openalex.org/A2"},
+             "countries": ["JP"], "institutions": []},
+        ],
+    }
+    work_kw, auths = parse_work(rec)
+    assert work_kw["n_authors"] == 2
+    assert work_kw["is_intl_collab"] is False  # JPのみ
+    assert work_kw["is_corp_collab"] is True
+    assert len(auths) == 2
+
+
+def test_parse_work_authorship_without_author_id_still_counted():
+    # author.idが無い著者行はauthorshipsから除外されるがn_authorsには数える
+    rec = {
+        "id": "https://openalex.org/W10",
+        "title": "t",
+        "publication_date": "2024-01-01",
+        "authorships": [
+            {"author": {"id": "https://openalex.org/A1"}, "countries": []},
+            {"author": {}, "countries": ["DE"]},
+        ],
+    }
+    work_kw, auths = parse_work(rec)
+    assert work_kw["n_authors"] == 2
+    assert work_kw["is_intl_collab"] is True
+    assert len(auths) == 1
