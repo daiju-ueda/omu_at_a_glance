@@ -134,7 +134,7 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             f"DBファイルがありません: {db_path} — "
             "先に `uv run python scripts/sync.py` を実行してください")
     engine = get_engine(db_path)
-    app = FastAPI(title="OMU研究者比較", docs_url=None, redoc_url=None,
+    app = FastAPI(title="OMU at a glance", docs_url=None, redoc_url=None,
                   openapi_url=None)
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"),
               name="static")

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ r.name_ja or r.display_name }} - OMU研究者比較{% endblock %}
+{% block title %}{{ r.name_ja or r.display_name }} - OMU at a glance{% endblock %}
 {% block content %}
 <div class="identity">
   <h2>{{ r.name_ja or r.display_name }}</h2>
@@ -93,8 +93,8 @@
   </td>
   <td>{{ w.venue or "–" }}</td>
   <td>{{ w.publication_date }}</td>
-  <td>{{ w.cited_by_count }}</td>
-  <td>{{ w.fwci|fmt }}</td>
+  <td class="num">{{ w.cited_by_count }}</td>
+  <td class="num">{{ w.fwci|fmt }}</td>
   <td>{% if a.author_position == 'first' %}筆頭{% endif %}{% if a.is_corresponding %}{% if a.author_position == 'first' %}・{% endif %}責任{% endif %}</td>
 </tr>
 {% endfor %}

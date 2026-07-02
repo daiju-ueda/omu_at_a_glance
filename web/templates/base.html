@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}OMU研究者比較{% endblock %}</title>
+<title>{% block title %}OMU at a glance{% endblock %}</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 {% set path = request.url.path %}
 <header>
-  <h1><a href="/">OMU研究者比較</a></h1>
-  <span class="tagline">Research Metrics</span>
+  <h1><a href="/">OMU at a glance</a></h1>
+  <span class="tagline">Osaka Metropolitan University · Research Metrics</span>
   <nav><a href="/" {% if path == '/' %}class="current"{% endif %}>ランキング</a><a href="/search" {% if path == '/search' %}class="current"{% endif %}>検索</a><a href="/compare" {% if path == '/compare' %}class="current"{% endif %}>比較</a><a href="/departments" {% if path == '/departments' %}class="current"{% endif %}>部局</a></nav>
 </header>
 <main>

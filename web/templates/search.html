@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>研究者検索</h2>
-<form method="get" class="controls">
+<form method="get" class="toolbar">
   <input type="text" name="q" value="{{ q }}" placeholder="氏名（部分一致）" autofocus>
   <button>検索</button>
 </form>
@@ -15,8 +15,8 @@
   <tr>
     <td><input type="checkbox" class="cmp" data-id="{{ r.openalex_id }}" data-name="{{ r.name_ja or r.display_name }}" aria-label="比較に追加: {{ r.name_ja or r.display_name }}"></td>
     <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
-    <td>{% if m %}{{ m.works_count_3y }}{% else %}–{% endif %}</td>
-    <td>{% if m %}{{ m.fwci_mean|fmt }}{% else %}–{% endif %}</td>
+    <td class="num">{% if m %}{{ m.works_count_3y }}{% else %}–{% endif %}</td>
+    <td class="num">{% if m %}{{ m.fwci_mean|fmt }}{% else %}–{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

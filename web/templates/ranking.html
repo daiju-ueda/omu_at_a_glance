@@ -4,8 +4,7 @@
 {%- endmacro %}
 {% block content %}
 <h2>ランキング <span class="total">{% if department %}{{ department }}: {% endif %}全{{ total_all }}人中 {{ total }}人を表示</span></h2>
-<div class="toolbar">
-<form method="get" class="controls">
+<form method="get" class="toolbar">
   <input type="hidden" name="sort" value="{{ sort }}">
   <label>部局:
     <select name="department">
@@ -18,15 +17,14 @@
   <label>最低論文数（3年）: <input type="number" name="min_works" value="{{ min_works }}" min="0"></label>
   <button>絞り込み</button>
 </form>
-</div>
 <table>
 <thead>
 <tr class="groups-row">
   <th colspan="2"></th><th></th>
-  <th class="group">生産性</th>
-  <th colspan="7" class="group">インパクト</th>
-  <th colspan="2" class="group">著者性</th>
-  <th class="group">資金</th>
+  <th>生産性</th>
+  <th colspan="7">インパクト</th>
+  <th colspan="2">著者性</th>
+  <th>資金</th>
 </tr>
 <tr>
   <th></th>
@@ -52,16 +50,16 @@
   <td><input type="checkbox" class="cmp" data-id="{{ r.openalex_id }}" data-name="{{ r.name_ja or r.display_name }}" aria-label="比較に追加: {{ r.name_ja or r.display_name }}"></td>
   <td>{{ (page - 1) * page_size + loop.index }}</td>
   <td><a href="/researchers/{{ r.openalex_id }}">{{ r.name_ja or r.display_name }}</a></td>
-  {{ numcell('works_count_3y', r.openalex_id, m.works_count_3y) }}
-  {{ numcell('total_citations', r.openalex_id, m.total_citations) }}
+  {{ numcell('works_count_3y', r.openalex_id, "{:,}".format(m.works_count_3y)) }}
+  {{ numcell('total_citations', r.openalex_id, "{:,}".format(m.total_citations)) }}
   {{ numcell('fractional_citations', r.openalex_id, m.fractional_citations|fmt) }}
   {{ numcell('fwci_total', r.openalex_id, m.fwci_total|fmt) }}
   {{ numcell('fwci_mean', r.openalex_id, m.fwci_mean|fmt) }}
   <td class="num sub">{{ m.fwci_median|fmt }}</td>
-  {{ numcell('top10pct_count', r.openalex_id, m.top10pct_count) }}
-  <td class="num sub">{{ m.top1pct_count }}</td>
-  <td class="num sub">{{ m.first_author_count }}</td>
-  <td class="num sub">{{ m.corresponding_count }}</td>
+  {{ numcell('top10pct_count', r.openalex_id, "{:,}".format(m.top10pct_count)) }}
+  <td class="num sub">{{ "{:,}".format(m.top1pct_count) }}</td>
+  <td class="num sub">{{ "{:,}".format(m.first_author_count) }}</td>
+  <td class="num sub">{{ "{:,}".format(m.corresponding_count) }}</td>
   {{ numcell('kaken_total_amount', r.openalex_id, m.kaken_total_amount|man) }}
 </tr>
 {% endfor %}

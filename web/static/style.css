@@ -11,6 +11,7 @@
   --indigo-tint: #eef2f7;
   --gold: #a97e2f;
   --gold-tint: #f7f1e3;
+  --gold-strong: #7a5a1a;
   --bar: #b9c9dc;
   --radius: 6px;
 }
@@ -85,14 +86,27 @@ th, td { padding: 0.42rem 0.65rem; border-bottom: 1px solid var(--line); text-al
 thead th {
   background: #f1f2ec; font-size: 0.8rem; color: var(--indigo-deep);
   position: sticky; top: 0; z-index: 2; white-space: nowrap;
+  /* sticky headers clip border-bottom during scroll (the border sits outside
+     the stacking context edge) — use an inset box-shadow instead so it stays
+     visible while pinned. See Item 5. */
+  box-shadow: inset 0 -1px 0 var(--line-strong); border-bottom: none;
 }
 thead th a { text-decoration: none; }
+/* two-row sticky thead (ranking.html): the group-label row (groups-row) pins
+   at top:0 with a fixed height, and the column-label row underneath pins at
+   top:<that height> so the two sticky rows stack instead of overlapping.
+   :has()-unsupported browsers just fall back to non-offset stacking — the
+   groups-row row is short enough that this only causes minor overlap, not
+   breakage. See Item 2. */
 tr.groups-row th {
   background: var(--indigo-deep); color: #d9e2ec;
   font-size: 0.7rem; letter-spacing: 0.18em; font-weight: normal;
-  border-bottom: none; padding: 0.28rem 0.65rem;
+  padding: 0 0.65rem; box-sizing: border-box;
+  top: 0; height: 26px; line-height: 26px;
+  box-shadow: none;
 }
-tbody tr:hover { background: var(--indigo-tint); }
+table:has(tr.groups-row) thead tr:nth-child(2) th { top: 26px; }
+tbody tr:hover { background: #e6ecf3; }
 td a { color: var(--indigo); }
 
 /* 数値セル */
@@ -104,12 +118,12 @@ td a { color: var(--indigo); }
 .num.sub { color: var(--muted); }
 
 /* ソート列＋分布バー（シグネチャ） */
-thead th.sorted { border-bottom: 2px solid var(--indigo); }
+thead th.sorted { box-shadow: inset 0 -2px 0 var(--indigo); border-bottom: none; }
 thead th.sorted a { color: var(--indigo); font-weight: 700; }
 td.sorted { background: var(--indigo-tint); font-weight: 600; position: relative; }
 .cellbar {
-  position: absolute; left: 0; bottom: 0; height: 3px;
-  width: var(--w, 0%); background: var(--bar);
+  position: absolute; left: 0; bottom: 0; height: 4px;
+  width: var(--w, 0%); background: #9db4cc;
 }
 
 /* バッジ・チップ */
@@ -117,8 +131,8 @@ td.sorted { background: var(--indigo-tint); font-weight: 600; position: relative
   display: inline-block; font-size: 0.68rem; padding: 0.05rem 0.45rem;
   border-radius: 999px; margin-left: 0.4rem; vertical-align: middle;
 }
-.badge.top1 { background: #7c2d12; color: #fff; }
-.badge.top10 { background: #b45309; color: #fff; }
+.badge.top1 { background: #6d1a12; color: #fff; }
+.badge.top10 { background: var(--gold-strong); color: #fff; }
 .chip {
   display: inline-block; font-size: 0.8rem; padding: 0.18rem 0.75rem;
   border: 1px solid var(--indigo); border-radius: 999px;
@@ -185,6 +199,10 @@ tr.group th {
   background: var(--indigo-tint); color: var(--indigo-deep);
   font-size: 0.75rem; letter-spacing: 0.12em;
 }
+/* the sticky first-column rule (table.compare.sticky tbody th) outranks the
+   plain tr.group th rule above by specificity, so the group band loses its
+   tint on the sticky first column — restate it with matching specificity. */
+table.compare.sticky tr.group th { background: var(--indigo-tint); }
 td.best {
   font-weight: 700; background: var(--gold-tint);
   box-shadow: inset 3px 0 0 var(--gold);
@@ -206,7 +224,7 @@ table.small-depts { opacity: 0.65; }
 }
 #compare-bar button {
   padding: 0.4rem 1.1rem; border: none; border-radius: 4px;
-  background: var(--gold); color: #fff; font-weight: 600; cursor: pointer;
+  background: var(--gold-strong); color: #fff; font-weight: 600; cursor: pointer;
 }
 #compare-bar button:disabled { opacity: 0.45; cursor: default; }
 body:has(input.cmp:checked) main { padding-bottom: 4rem; }
