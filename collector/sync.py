@@ -53,10 +53,17 @@ def sync_authors(session, client, today: datetime.date,
         if n % COMMIT_EVERY == 0:
             session.commit()
             logger.info("authors: %d upserted", n)
-    n_del = session.execute(
-        delete(Researcher).where(Researcher.openalex_id.not_in(seen_ids))
-    ).rowcount
-    logger.info("authors: %d removed (no longer at institution)", n_del)
+    expected = client.count("authors", filter_str)
+    if expected != n:
+        logger.warning("authors count mismatch: api=%d local=%d", expected, n)
+    if n == 0 or expected != n:
+        logger.warning("authors: skipping deletion pass (fetched=%d, expected=%d)", n, expected)
+    else:
+        n_del = session.execute(
+            delete(Researcher).where(Researcher.openalex_id.not_in(seen_ids))
+        ).rowcount
+        if n_del:
+            logger.info("authors: %d removed (no longer at institution)", n_del)
     _record_state(session, "authors", today)
     logger.info("authors sync done: %d", n)
     return n
@@ -81,18 +88,21 @@ def sync_works(session, client, today: datetime.date,
         if n % COMMIT_EVERY == 0:
             session.commit()
             logger.info("works: %d upserted", n)
-    n_del_works = session.execute(
-        delete(Work).where(Work.publication_date >= start,
-                           Work.openalex_id.not_in(seen_ids))
-    ).rowcount
-    n_del_auth = session.execute(
-        delete(Authorship).where(Authorship.work_id.not_in(select(Work.openalex_id)))
-    ).rowcount
-    logger.info("works: %d removed (no longer in window), %d authorships removed (orphaned)",
-                n_del_works, n_del_auth)
-    _record_state(session, "works", today)
     expected = client.count("works", filter_str)
     if expected != n:
         logger.warning("works count mismatch: api=%d local=%d", expected, n)
+    if n == 0 or expected != n:
+        logger.warning("works: skipping deletion pass (fetched=%d, expected=%d)", n, expected)
+    else:
+        n_del_works = session.execute(
+            delete(Work).where(Work.publication_date >= start,
+                               Work.openalex_id.not_in(seen_ids))
+        ).rowcount
+        n_del_auth = session.execute(
+            delete(Authorship).where(Authorship.work_id.not_in(select(Work.openalex_id)))
+        ).rowcount
+        logger.info("works: %d removed (no longer in window), %d authorships removed (orphaned)",
+                    n_del_works, n_del_auth)
+    _record_state(session, "works", today)
     logger.info("works sync done: %d", n)
     return n

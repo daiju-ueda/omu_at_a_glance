@@ -36,7 +36,7 @@ def test_window_start_leap_day():
 
 def test_sync_authors_upserts_and_records_state():
     engine = get_engine(":memory:")
-    client = FakeClient([AUTHOR])
+    client = FakeClient([AUTHOR], count_value=1)
     with Session(engine) as s:
         n = sync_authors(s, client, today=TODAY)
         assert n == 1
@@ -63,9 +63,15 @@ def test_sync_works_full_warns_on_count_mismatch(caplog):
     engine = get_engine(":memory:")
     client = FakeClient([WORK], count_value=99)
     with Session(engine) as s:
+        s.add(Work(openalex_id="W_STALE", title="", publication_date="2024-05-05",
+                   cited_by_count=0, is_top1pct=False, is_top10pct=False, is_oa=False,
+                   raw_json="{}", updated_at=""))
+        s.commit()
         with caplog.at_level("WARNING"):
             sync_works(s, client, today=TODAY)
+        assert s.get(Work, "W_STALE") is not None
     assert any("mismatch" in r.message for r in caplog.records)
+    assert any("skipping deletion" in r.message for r in caplog.records)
 
 
 def test_sync_authors_removes_departed(caplog):
@@ -74,13 +80,27 @@ def test_sync_authors_removes_departed(caplog):
         s.add(Researcher(openalex_id="A_OLD", display_name="Old Researcher",
                          raw_json="{}", updated_at=""))
         s.commit()
-        client = FakeClient([AUTHOR])
+        client = FakeClient([AUTHOR], count_value=1)
         with caplog.at_level("INFO"):
             n = sync_authors(s, client, today=TODAY)
         assert n == 1
         assert s.get(Researcher, "A_OLD") is None
         assert s.get(Researcher, "A5023888391") is not None
     assert any("removed" in r.message for r in caplog.records)
+
+
+def test_sync_authors_empty_fetch_skips_deletion(caplog):
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Researcher(openalex_id="A_KEEP", display_name="Keep Researcher",
+                         raw_json="{}", updated_at=""))
+        s.commit()
+        client = FakeClient([], count_value=0)
+        with caplog.at_level("WARNING"):
+            n = sync_authors(s, client, today=TODAY)
+        assert n == 0
+        assert s.get(Researcher, "A_KEEP") is not None
+    assert any("skipping deletion" in r.message for r in caplog.records)
 
 
 def test_sync_works_removes_stale_and_refreshes_authorships(caplog):
