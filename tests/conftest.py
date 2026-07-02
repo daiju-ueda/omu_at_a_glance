@@ -3,8 +3,8 @@ import datetime
 import pytest
 from sqlalchemy.orm import Session
 
-from db.models import (Authorship, Researcher, ResearcherMetrics, SyncState,
-                       Work, get_engine)
+from db.models import (Authorship, Researcher, ResearcherMetrics, Roster,
+                       RosterAchievement, SyncState, Work, get_engine)
 
 TODAY = datetime.date.today()
 RECENT = (TODAY - datetime.timedelta(days=90)).isoformat()
@@ -59,6 +59,7 @@ def seeded_db_path(tmp_path):
                               dataset_software_count=1, unique_coauthors=42,
                               top_subfield="Health Informatics",
                               kaken_pi_count=2, kaken_copi_count=1, kaken_total_amount=75_000_000,
+                              awards_count=3, books_count=2, presentations_count=10, committee_count=1,
                               computed_at=""),
             ResearcherMetrics(researcher_id="A2", works_count_3y=8,
                               total_citations=900, fwci_mean=None,
@@ -71,6 +72,7 @@ def seeded_db_path(tmp_path):
                               dataset_software_count=0, unique_coauthors=10,
                               top_subfield=None,
                               kaken_pi_count=0, kaken_copi_count=2, kaken_total_amount=0,
+                              awards_count=0, books_count=0, presentations_count=0, committee_count=0,
                               computed_at=""),
             ResearcherMetrics(researcher_id="A3", works_count_3y=2,
                               total_citations=50, fwci_mean=9.9,
@@ -82,6 +84,16 @@ def seeded_db_path(tmp_path):
                               oa_rate=1.0, preprint_count=0,
                               dataset_software_count=0, unique_coauthors=3,
                               top_subfield="ML", computed_at=""),
+        ])
+        s.add(Roster(profile_id="P1", name_kanji="山田 太郎", division="大学院医学研究科",
+                     matched_researcher_id="A1", updated_at=""))
+        s.add_all([
+            RosterAchievement(profile_id="P1", category="award",
+                              title="ベスト研究賞", year=2024, detail="2024 学会",
+                              updated_at=""),
+            RosterAchievement(profile_id="P1", category="award",
+                              title="古い賞", year=None, detail=None,
+                              updated_at=""),
         ])
         s.add_all([
             _work("W1", "Deep Learning in Radiology", RECENT, "10.1/x",

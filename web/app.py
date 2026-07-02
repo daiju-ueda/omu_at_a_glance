@@ -73,6 +73,12 @@ def _compare_table(pairs):
             ("科研費（分担）", metric("kaken_copi_count"), _fmt_int, True),
             ("科研費配分総額", metric("kaken_total_amount"), _man, True),
         ]),
+        ("実績（全期間・公式総覧）", [
+            ("受賞数", metric("awards_count"), _fmt_int, True),
+            ("著書数", metric("books_count"), _fmt_int, True),
+            ("講演数", metric("presentations_count"), _fmt_int, True),
+            ("委員歴数", metric("committee_count"), _fmt_int, True),
+        ]),
     ]
     groups = []
     for group_label, rows_spec in spec:
@@ -148,13 +154,14 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
                     f"/researchers/{researcher.canonical_id}", status_code=302)
             result = queries.researcher_detail(session, openalex_id)
             ranks = queries.metric_ranks(session, openalex_id)
+            awards = queries.awards_for(session, openalex_id)
             synced = queries.last_synced(session)
         if result is None:
             return templates.TemplateResponse(
                 request, "404.html", {"synced": synced}, status_code=404)
         researcher, metrics, works = result
         return templates.TemplateResponse(request, "researcher.html", {
-            "r": researcher, "m": metrics, "works": works, "ranks": ranks or {}, "synced": synced,
+            "r": researcher, "m": metrics, "works": works, "ranks": ranks or {}, "awards": awards, "synced": synced,
         })
 
     @app.get("/search", response_class=HTMLResponse)

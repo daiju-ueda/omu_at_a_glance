@@ -231,3 +231,18 @@ def test_alias_redirects_to_canonical(client):
     resp = client.get("/researchers/A1b", follow_redirects=False)
     assert resp.status_code == 302
     assert resp.headers["location"] == "/researchers/A1"
+
+
+def test_researcher_detail_achievements(client):
+    body = client.get("/researchers/A1").text
+    assert "受賞（全期間）" in body and "著書（全期間）" in body
+    assert "ベスト研究賞" in body   # 受賞歴リスト
+    body2 = client.get("/researchers/A2").text
+    assert "ベスト研究賞" not in body2
+
+
+def test_compare_achievements_group(client):
+    body = client.get("/compare?ids=A1,A2").text
+    assert "実績（全期間・公式総覧）" in body
+    assert '<td class="best">3</td>' in body   # 受賞数A1=3
+    assert "受賞・著書・講演・委員歴は公式総覧収録分" in body
