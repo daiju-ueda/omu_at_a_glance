@@ -82,3 +82,25 @@ def test_parse_grants_rejects_entity_expansion():
             '<grantAwards total="0">&a;</grantAwards>')
     with pytest.raises(Exception):
         parse_grants(evil)
+
+
+def test_parse_grants_skips_broken_entry_with_warning(caplog):
+    xml = """<?xml version="1.0"?>
+<grantAwards total="2">
+  <grantAward>
+    <summary xml:lang="ja"><title>awardNumber無し</title></summary>
+  </grantAward>
+  <grantAward awardNumber="24K00001">
+    <summary xml:lang="ja">
+      <title>正常な課題</title>
+      <institution>大阪公立大学</institution>
+    </summary>
+  </grantAward>
+</grantAwards>
+"""
+    with caplog.at_level("WARNING"):
+        entries, total = parse_grants(xml)
+    assert total == 2
+    assert len(entries) == 1  # 壊れた1件はスキップ、残りは生きる
+    assert entries[0][0]["award_id"] == "24K00001"
+    assert any("スキップ" in r.message for r in caplog.records)
