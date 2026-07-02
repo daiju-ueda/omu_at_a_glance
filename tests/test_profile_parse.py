@@ -39,7 +39,11 @@ PROFILE_HTML = """<html><body>
 <div id="gkkai_iinkai">
   <ul>
     <li>
-      <p class="title">和泉市史編さん委員会 調査執筆委員</p>
+      <p class="">大阪公立大学日本史学会 委員 </p>
+      <p class="contents"><span>2013年05月</span><span>-</span><span>継続中</span></p>
+    </li>
+    <li>
+      <p class="">和泉市史編さん委員会 調査執筆委員</p>
       <p class="contents">年不明</p>
     </li>
   </ul>
@@ -61,8 +65,10 @@ def test_parse_profile_achievements():
     assert awards[1]["year"] == 2023
     assert by_cat["book"][0]["year"] == 2016
     assert by_cat["presentation"][0]["year"] == 2024
-    assert by_cat["committee"][0]["year"] is None  # 年が無ければNone
-    assert len(entries) == 5
+    assert by_cat["committee"][0]["title"] == "大阪公立大学日本史学会 委員"
+    assert by_cat["committee"][0]["year"] == 2013
+    assert by_cat["committee"][1]["year"] is None  # 年が無ければNone
+    assert len(entries) == 6
 
 
 def test_parse_profile_achievements_missing_sections():

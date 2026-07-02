@@ -164,6 +164,15 @@ def parse_profile_achievements(html: str) -> list[dict]:
         for li in container.find_all("li"):
             title_el = li.find("p", class_="title")
             if title_el is None:
+                # 委員歴などはタイトルが <p class=""> で入る
+                for p in li.find_all("p"):
+                    classes = p.get("class") or []
+                    if ("contents" not in classes
+                            and "accordion-menu-bar" not in classes
+                            and p.find_parent(class_="gaiyo-detail") is None):
+                        title_el = p
+                        break
+            if title_el is None:
                 continue
             title = title_el.get_text(strip=True)
             if not title:
