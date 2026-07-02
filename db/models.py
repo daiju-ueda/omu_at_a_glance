@@ -79,6 +79,9 @@ class ResearcherMetrics(Base):
     dataset_software_count: Mapped[int] = mapped_column(Integer, default=0)
     unique_coauthors: Mapped[int] = mapped_column(Integer, default=0)
     top_subfield: Mapped[str | None] = mapped_column(String, nullable=True)
+    kaken_pi_count: Mapped[int] = mapped_column(Integer, default=0)
+    kaken_copi_count: Mapped[int] = mapped_column(Integer, default=0)
+    kaken_total_amount: Mapped[int] = mapped_column(Integer, default=0)
     computed_at: Mapped[str] = mapped_column(String)
 
 
@@ -87,6 +90,29 @@ class SyncState(Base):
     source: Mapped[str] = mapped_column(String, primary_key=True)
     cursor: Mapped[str | None] = mapped_column(String, nullable=True)
     last_synced_at: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class Grant(Base):
+    __tablename__ = "grants"
+    award_id: Mapped[str] = mapped_column(String, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
+    start_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    end_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_amount: Mapped[int] = mapped_column(Integer, default=0)
+    raw_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
+class GrantMember(Base):
+    __tablename__ = "grant_members"
+    award_id: Mapped[str] = mapped_column(String, primary_key=True)
+    erad_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name_kanji: Mapped[str] = mapped_column(String)
+    name_kana: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[str] = mapped_column(String)
+    matched_researcher_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True)
 
 
 def get_engine(path: str = "db/researchers.db"):
