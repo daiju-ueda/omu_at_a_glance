@@ -31,6 +31,10 @@ def test_ranking_invalid_params_fall_back(client):
     assert resp.status_code == 200
     assert "Taro Yamada" in resp.text
 
+    resp = client.get("/?page=99999999999999999999&min_works=99999999999999999999")
+    assert resp.status_code == 200
+    assert "Taro Yamada" in resp.text
+
 
 def test_researcher_detail(client):
     body = client.get("/researchers/A1").text
@@ -56,3 +60,8 @@ def test_search(client):
 def test_missing_db_fails_fast(tmp_path):
     with pytest.raises(RuntimeError):
         create_app(str(tmp_path / "missing.db"))
+
+
+def test_no_api_docs(client):
+    assert client.get("/docs").status_code == 404
+    assert client.get("/openapi.json").status_code == 404

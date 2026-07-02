@@ -1,6 +1,7 @@
 [Unit]
 Description=OMU Researchers Web Viewer
 After=network.target
+ConditionPathExists=/srv/apps/researchers/db/researchers.db
 
 [Service]
 Type=simple

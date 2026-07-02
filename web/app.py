@@ -17,12 +17,15 @@ def _fmt(value):
     return "–" if value is None else f"{value:.2f}"
 
 
+MAX_PARAM = 1_000_000
+
+
 def _int_param(value, default, minimum=0):
     try:
         parsed = int(value)
     except (TypeError, ValueError):
         return default
-    return parsed if parsed >= minimum else default
+    return parsed if minimum <= parsed <= MAX_PARAM else default
 
 
 def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
@@ -31,7 +34,8 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
             f"DBファイルがありません: {db_path} — "
             "先に `uv run python scripts/sync.py` を実行してください")
     engine = get_engine(db_path)
-    app = FastAPI(title="OMU研究者比較")
+    app = FastAPI(title="OMU研究者比較", docs_url=None, redoc_url=None,
+                  openapi_url=None)
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"),
               name="static")
     templates = Jinja2Templates(directory=BASE_DIR / "templates")

@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy.orm import Session
 
 from db.models import get_engine
@@ -62,3 +63,15 @@ def test_search(seeded_db_path):
 def test_last_synced(seeded_db_path):
     with _session(seeded_db_path) as s:
         assert last_synced(s) == "2026-07-02"
+
+
+@pytest.mark.parametrize("sort_key,expected_first", [
+    ("fwci_mean", "A3"),          # 9.9
+    ("total_citations", "A2"),    # 900
+    ("top10pct_count", "A1"),     # 4
+    ("works_count_3y", "A1"),     # 10
+])
+def test_ranking_all_sort_keys(seeded_db_path, sort_key, expected_first):
+    with _session(seeded_db_path) as s:
+        rows, _ = ranking(s, sort=sort_key, min_works=0)
+    assert rows[0].Researcher.openalex_id == expected_first
