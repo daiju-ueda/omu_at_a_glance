@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from db.models import ResearcherMetrics, get_engine
+from db.models import Researcher, get_engine
 from web import queries
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -193,14 +193,16 @@ def create_app(db_path: str = DEFAULT_DB) -> FastAPI:
     @app.get("/departments", response_class=HTMLResponse)
     def departments_page(request: Request):
         with Session(engine) as session:
-            stats = queries.department_stats(session)
-            matched = sum(item["members"] for item in stats)
+            ranked, small = queries.department_stats(session)
+            matched = (sum(item["members"] for item in ranked)
+                       + sum(item["members"] for item in small))
             total_count = session.scalar(
-                select(func.count()).select_from(ResearcherMetrics))
+                select(func.count()).select_from(Researcher))
             synced = queries.last_synced(session)
         return templates.TemplateResponse(request, "departments.html", {
-            "stats": stats, "matched": matched, "total_count": total_count,
-            "synced": synced,
+            "ranked": ranked, "small": small, "matched": matched,
+            "total_count": total_count, "synced": synced,
+            "min_members": queries.MIN_DEPT_MEMBERS,
         })
 
     return app

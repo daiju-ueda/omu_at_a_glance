@@ -212,10 +212,13 @@ def test_ranking_invalid_department_falls_back(client):
 
 def test_departments_page(client):
     body = client.get("/departments").text
+    # A1(医学研究科)・A3(情報学研究科)ともに1人 < 最低人数しきい値のため「参考」表に回る
     assert "大学院医学研究科" in body and "大学院情報学研究科" in body
     assert body.index("大学院医学研究科") < body.index("大学院情報学研究科")
     assert "35.00" in body          # 人あたりFWCI合計
     assert "名寄せできた研究者のみ" in body
+    assert "参考" in body
+    assert "順位対象外" in body
     assert "/?department=" in body  # 部局リンク
 
 

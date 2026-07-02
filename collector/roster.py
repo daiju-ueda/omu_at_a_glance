@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import delete, select
 
 from collector.nameutil import kana_part_variants, normalize_name
-from db.models import Researcher, Roster, SyncState
+from db.models import GrantMember, Researcher, Roster, SyncState
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +111,15 @@ def sync_roster(session, client, today: datetime.date) -> int:
     if not divisions:
         logger.warning("roster: 部局リンクが見つからないためスキップ（既存データ保持）")
         return 0
+    divisions.sort(key=lambda d: d[0])  # a2コード昇順で決定的に。重複所属者はコード最小の部局に帰属
     rows: dict[str, dict] = {}
     for code, label in divisions:
         page = 1
         while True:
+            if page > 200:
+                logger.warning("roster: ページ数上限(200)に達したため打ち切り (a2=%s)",
+                               code)
+                break
             html = client.fetch("/search", params={
                 "m": "affiliation", "l": "ja", "a2": code,
                 "s": 1, "p": page, "o": "affiliation"})
@@ -122,6 +127,10 @@ def sync_roster(session, client, today: datetime.date) -> int:
             for m in members:
                 if m["profile_id"] not in rows:
                     rows[m["profile_id"]] = {**m, "division": label}
+            if members and total == 0:
+                logger.warning("roster: 総件数が読めないため1ページで打ち切り (a2=%s)",
+                               code)
+                break
             if not members or page * PAGE_SIZE >= total:
                 break
             page += 1
@@ -139,13 +148,21 @@ def sync_roster(session, client, today: datetime.date) -> int:
 
 
 def match_roster(session) -> int:
+    # 退職者などが残した古いname_jaを信用して誤って復活マッチしないよう、
+    # 「現在も公式総覧に載っている」または「KAKENで現に一致している」名前のみ
+    # kanji_indexに採用する
+    kaken_named = set(session.scalars(
+        select(GrantMember.matched_researcher_id)
+        .where(GrantMember.matched_researcher_id.is_not(None))
+        .distinct()))
+
     name_index: dict[str, set[str]] = defaultdict(set)
     kanji_index: dict[str, set[str]] = defaultdict(set)
-    for rid, display_name, name_ja in session.execute(
+    for rid, display_name, name_ja, is_official in session.execute(
             select(Researcher.openalex_id, Researcher.display_name,
-                   Researcher.name_ja)):
+                   Researcher.name_ja, Researcher.is_official_roster)):
         name_index[normalize_name(display_name)].add(rid)
-        if name_ja:
+        if name_ja and (rid in kaken_named or is_official):
             kanji_index[name_ja].add(rid)
 
     entries = list(session.scalars(select(Roster)))

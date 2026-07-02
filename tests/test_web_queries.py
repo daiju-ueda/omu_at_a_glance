@@ -135,10 +135,12 @@ def test_ranking_department_filter(seeded_db_path):
 def test_departments_list_and_stats(seeded_db_path):
     with _session(seeded_db_path) as s:
         assert departments_list(s) == ["大学院医学研究科", "大学院情報学研究科"]
-        stats = department_stats(s)
-        assert [d["department"] for d in stats] == [
-            "大学院医学研究科", "大学院情報学研究科"]  # fwci_per_capita 35.0 > 19.8
-        med = stats[0]
+        ranked, small = department_stats(s)
+        # A1(医学研究科)・A3(情報学研究科)ともに1人 < MIN_DEPT_MEMBERS(5) → 順位対象外
+        assert ranked == []
+        assert [d["department"] for d in small] == [
+            "大学院医学研究科", "大学院情報学研究科"]  # 人数同数(1)のため部局名昇順
+        med = small[0]
         assert med["members"] == 1
         assert med["works"] == 10
         assert med["fwci_per_capita"] == 35.0

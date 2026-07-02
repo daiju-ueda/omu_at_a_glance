@@ -94,7 +94,8 @@ def test_match_roster_dual_bridge_and_apply():
     with Session(engine) as s:
         s.add_all([
             _researcher("A1", "Taro Yamada"),                    # カナで一致
-            _researcher("A2", "X Y", name_ja="鈴木 花子"),        # 漢字で一致
+            _researcher("A2", "X Y", name_ja="鈴木 花子",
+                       is_official_roster=True),  # 漢字で一致（現在も公式総覧に在籍）
             _researcher("A3", "Ichiro Tanaka"),
             _researcher("A4", "Ichiro Tanaka"),                  # 同名→曖昧
         ])
@@ -148,3 +149,21 @@ def test_match_roster_conflict_and_clear():
         a9 = s.get(Researcher, "A9")
         assert a9.department is None and a9.is_official_roster is False
         assert a9.name_ja == "昔 の人"   # name_jaは残す
+
+
+def test_match_roster_stale_name_ja_not_resurrected():
+    # 退職済み等でis_official_roster=False・KAKEN一致もない研究者の古いname_jaは
+    # 信用せず、同じ漢字のroster行があってもマッチさせない（カナも無い曖昧ケース）
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(_researcher("A9", "Old Member", name_ja="山田 太郎",
+                          is_official_roster=False))
+        s.add(Roster(profile_id="111", name_kanji="山田 太郎",
+                     name_kana=None, division="大学院文学研究科",
+                     updated_at=""))
+        s.commit()
+
+        n = match_roster(s)
+        assert n == 0
+        assert s.get(Roster, "111").matched_researcher_id is None
+        assert s.get(Researcher, "A9").department is None

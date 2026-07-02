@@ -29,9 +29,18 @@ def test_chouon_mark():
     assert "ryusei" in {v.replace("ryuu", "ryu") for v in kana_part_variants("リュウセイ")} or "ryusei" in kana_part_variants("リュウセイ")
 
 
+def test_small_kana_digraph_variants():
+    assert kana_part_variants("ジェシ") == {"jeshi"}
+    assert "hewon" in kana_part_variants("ヘウォン")
+
+
 def test_normalize_name():
     assert normalize_name("Jun'ichiro  Tanaka-Sato") == "junichiro tanakasato"
     assert normalize_name("Daiju Ueda") == "daiju ueda"
+
+
+def test_normalize_name_folds_diacritics():
+    assert normalize_name("Shûichi Ōno") == "shuichi ono"
 
 
 def test_empty_and_unknown_chars():

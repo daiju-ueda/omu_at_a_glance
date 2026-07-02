@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 # ヘボン式（拗音含む）。キーはカタカナ
 _DIGRAPHS = {
@@ -14,6 +15,13 @@ _DIGRAPHS = {
     "ビャ": "bya", "ビュ": "byu", "ビョ": "byo",
     "ピャ": "pya", "ピュ": "pyu", "ピョ": "pyo",
     "ヂャ": "ja", "ヂュ": "ju", "ヂョ": "jo",
+    # 外来語表記に使われる小書きかな二重母音
+    "ジェ": "je", "シェ": "she", "チェ": "che",
+    "ティ": "ti", "ディ": "di", "デュ": "du",
+    "ファ": "fa", "フィ": "fi", "フェ": "fe", "フォ": "fo",
+    "ウィ": "wi", "ウェ": "we", "ウォ": "wo",
+    "ヴァ": "va", "ヴィ": "vi", "ヴェ": "ve", "ヴォ": "vo",
+    "トゥ": "tu",
 }
 _MONO = {
     "ア": "a", "イ": "i", "ウ": "u", "エ": "e", "オ": "o",
@@ -103,6 +111,7 @@ def kana_part_variants(part: str) -> set[str]:
 
 
 def normalize_name(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s)  # 分音記号（^, ¯ 等）を分解して除去可能にする
     s = s.lower()
     s = re.sub(r"[^a-z0-9 ]", "", s)
     return re.sub(r" +", " ", s).strip()

@@ -7,6 +7,7 @@ from db.models import (Authorship, Researcher, ResearcherMetrics, SyncState,
                        Work)
 
 PAGE_SIZE = 100
+MIN_DEPT_MEMBERS = 5  # 部局間per-capita比較の順位対象とする最低名寄せ人数
 
 SORT_COLUMNS = {
     "fwci_mean": ResearcherMetrics.fwci_mean,
@@ -157,5 +158,10 @@ def department_stats(session):
             "top10": top10 or 0,
             "kaken_amount": kaken or 0,
         })
-    stats.sort(key=lambda item: item["fwci_per_capita"], reverse=True)
-    return stats
+    # 名寄せ人数が少ない部局はper-capita値が極端に振れるため順位対象から除外し、
+    # 参考表示（人数降順）に回す（n=1の部局が首位に立つ問題への対処）
+    ranked = [s for s in stats if s["members"] >= MIN_DEPT_MEMBERS]
+    ranked.sort(key=lambda item: item["fwci_per_capita"], reverse=True)
+    small = [s for s in stats if s["members"] < MIN_DEPT_MEMBERS]
+    small.sort(key=lambda item: (-item["members"], item["department"]))
+    return ranked, small
