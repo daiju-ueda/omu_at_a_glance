@@ -23,6 +23,8 @@ class Researcher(Base):
     is_official_roster: Mapped[bool] = mapped_column(Boolean, default=False)
     canonical_id: Mapped[str | None] = mapped_column(
         String, nullable=True, index=True)
+    # 'last_known': last_known_institutionsフィルタ由来 / 'works': works補完由来
+    source: Mapped[str] = mapped_column(String, default="last_known")
     raw_json: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(String)
 
@@ -57,6 +59,8 @@ class Authorship(Base):
     author_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     author_position: Mapped[str | None] = mapped_column(String, nullable=True)
     is_corresponding: Mapped[bool] = mapped_column(Boolean, default=False)
+    # その著者のその論文での所属機関ID（パイプ区切り、なければNULL）
+    institution_ids: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ResearcherMetrics(Base):

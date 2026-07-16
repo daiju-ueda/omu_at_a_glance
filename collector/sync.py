@@ -10,6 +10,10 @@ from db.models import Authorship, Researcher, SyncState, Work
 logger = logging.getLogger(__name__)
 
 INSTITUTION_ID = "I4387152983"  # 大阪公立大学
+# OpenAlexの機関名寄せは不安定で、OMUの所属文字列が前身機関等に誤解決されるため
+# works取得と著者補完は前身機関込みで行う（設計書 2026-07-16-works-backfill-design.md）
+PREDECESSOR_IDS = ("I317356780", "I15807432", "I4210166029")  # 旧市大・旧府大・市大病院
+TARGET_INSTITUTION_IDS = (INSTITUTION_ID, *PREDECESSOR_IDS)
 AUTHOR_SELECT = "id,display_name,orcid,works_count,summary_stats,updated_date"
 WORK_SELECT = (
     "id,doi,title,publication_date,type,cited_by_count,fwci,"
@@ -48,7 +52,7 @@ def sync_authors(session, client, today: datetime.date,
     for rec in client.paginate("authors", filter_str, select=AUTHOR_SELECT):
         kw = parse_author(rec)
         seen_ids.add(kw["openalex_id"])
-        _upsert(session, Researcher, kw)
+        _upsert(session, Researcher, {**kw, "source": "last_known"})
         n += 1
         if n % COMMIT_EVERY == 0:
             session.commit()
@@ -60,7 +64,8 @@ def sync_authors(session, client, today: datetime.date,
         logger.warning("authors: skipping deletion pass (fetched=%d, expected=%d)", n, expected)
     else:
         n_del = session.execute(
-            delete(Researcher).where(Researcher.openalex_id.not_in(seen_ids))
+            delete(Researcher).where(Researcher.openalex_id.not_in(seen_ids),
+                                     Researcher.source == "last_known")
         ).rowcount
         if n_del:
             logger.info("authors: %d removed (no longer at institution)", n_del)
@@ -70,9 +75,9 @@ def sync_authors(session, client, today: datetime.date,
 
 
 def sync_works(session, client, today: datetime.date,
-               institution_id: str = INSTITUTION_ID) -> int:
+               institution_ids: tuple[str, ...] = TARGET_INSTITUTION_IDS) -> int:
     start = window_start(today)
-    filter_str = (f"institutions.id:{institution_id},"
+    filter_str = (f"institutions.id:{'|'.join(institution_ids)},"
                   f"from_publication_date:{start}")
     n = 0
     seen_ids: set[str] = set()
