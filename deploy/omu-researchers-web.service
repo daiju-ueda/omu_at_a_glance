@@ -1,12 +1,12 @@
 [Unit]
 Description=OMU Researchers Web Viewer
 After=network.target
-ConditionPathExists=/srv/apps/researchers/db/researchers.db
+ConditionPathExists=/srv/apps/omu/db/researchers.db
 
 [Service]
 Type=simple
 User=d-ueda
-WorkingDirectory=/srv/apps/researchers
+WorkingDirectory=/srv/apps/omu
 ExecStart=/home/d-ueda/.local/bin/uv run uvicorn web.app:create_default_app --factory --host 0.0.0.0 --port 8100
 Restart=always
 RestartSec=5
