@@ -56,7 +56,31 @@ def test_sync_works_upserts_works_and_authorships():
         assert n == 1
         assert s.get(Work, "W4385564466").cited_by_count == 521
         assert s.scalar(select(func.count()).select_from(Authorship)) == 2
+    assert ("institutions.id:I4387152983|I317356780|I15807432|I4210166029"
+            in client.calls[0][1])
     assert "from_publication_date:2023-07-02" in client.calls[0][1]
+
+
+def test_sync_works_stores_institution_ids():
+    engine = get_engine(":memory:")
+    client = FakeClient([WORK], count_value=1)
+    with Session(engine) as s:
+        sync_works(s, client, today=TODAY)
+        a = s.get(Authorship, ("W4385564466", "A5023888391"))
+        assert a.institution_ids == "I4387152983"
+
+
+def test_sync_authors_sets_source_and_keeps_works_rows():
+    engine = get_engine(":memory:")
+    with Session(engine) as s:
+        s.add(Researcher(openalex_id="A_WORKS", display_name="Backfilled",
+                         source="works", raw_json="{}", updated_at=""))
+        s.commit()
+        client = FakeClient([AUTHOR], count_value=1)
+        sync_authors(s, client, today=TODAY)
+        # works由来の行は削除パスの対象外
+        assert s.get(Researcher, "A_WORKS") is not None
+        assert s.get(Researcher, "A5023888391").source == "last_known"
 
 
 def test_sync_works_full_warns_on_count_mismatch(caplog):
