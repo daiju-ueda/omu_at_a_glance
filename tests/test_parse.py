@@ -1,4 +1,5 @@
-from collector.parse import parse_author, parse_work, strip_id
+from collector.parse import (omu_raw_author_ids, parse_author, parse_work,
+                             strip_id)
 
 AUTHOR = {
     "id": "https://openalex.org/A5023888391",
@@ -107,6 +108,42 @@ def test_parse_work_authorship_without_institutions():
                             "countries": []}]}
     _, auths = parse_work(rec)
     assert auths[0]["institution_ids"] is None
+
+
+def _raw_rec(entries):
+    return {"authorships": [
+        {"author": {"id": f"https://openalex.org/{aid}"},
+         "raw_affiliation_strings": raws}
+        for aid, raws in entries]}
+
+
+def test_omu_raw_author_ids_matches_omu_and_predecessors():
+    rec = _raw_rec([
+        ("A1", ["Graduate School of Medicine, Osaka Metropolitan University"]),
+        ("A2", ["Osaka City Univ. Hospital, Osaka, Japan"]),
+        ("A3", ["Osaka Prefecture University, Sakai"]),
+        ("A4", ["大阪公立大学大学院医学研究科"]),
+    ])
+    assert omu_raw_author_ids(rec) == {"A1", "A2", "A3", "A4"}
+
+
+def test_omu_raw_author_ids_rejects_lookalikes():
+    rec = _raw_rec([
+        # 阪大（誤解決の主因）・大阪経済大・高専・raw無しは対象外
+        ("A1", ["Graduate School of Medicine, Osaka University"]),
+        ("A2", ["Osaka University of Economics"]),
+        ("A3", ["Osaka Metropolitan University College of Technology"]),
+        ("A4", []),
+    ])
+    assert omu_raw_author_ids(rec) == set()
+
+
+def test_omu_raw_author_ids_any_string_qualifies():
+    # 併記（阪大とOMU両方の所属を持つ）のはOMU側があるので対象
+    rec = _raw_rec([
+        ("A1", ["Osaka University", "Osaka Metropolitan University"]),
+    ])
+    assert omu_raw_author_ids(rec) == {"A1"}
 
 
 def test_parse_work_missing_fields():

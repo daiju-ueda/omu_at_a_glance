@@ -1,29 +1,27 @@
 import datetime
+import json
 import logging
 
 from sqlalchemy import delete, select
 
-from collector.parse import parse_author
-from collector.sync import (AUTHOR_SELECT, TARGET_INSTITUTION_IDS,
-                            _record_state, _upsert)
-from db.models import Authorship, Researcher
+from collector.parse import omu_raw_author_ids, parse_author
+from collector.sync import AUTHOR_SELECT, _record_state, _upsert
+from db.models import Researcher, Work
 
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 50  # ids.openalexフィルタの1リクエストあたり著者数
 
 
-def qualifying_author_ids(
-        session,
-        institution_ids: tuple[str, ...] = TARGET_INSTITUTION_IDS) -> set[str]:
-    """対象機関名義のauthorshipを1件以上持つ著者ID"""
-    target = set(institution_ids)
+def qualifying_author_ids(session) -> set[str]:
+    """raw所属文字列がOMU系のauthorshipを1件以上持つ著者ID
+
+    OpenAlexの解決済み機関IDは誤解決が多く（阪大の論文が旧市大IDに付く等）、
+    IDベースの判定は学外者を取り込むため、rawの所属表記で判定する。
+    """
     qualifying: set[str] = set()
-    for author_id, inst_ids in session.execute(
-            select(Authorship.author_id, Authorship.institution_ids)
-            .where(Authorship.institution_ids.is_not(None))):
-        if target & set(inst_ids.split("|")):
-            qualifying.add(author_id)
+    for (raw,) in session.execute(select(Work.raw_json)):
+        qualifying |= omu_raw_author_ids(json.loads(raw))
     return qualifying
 
 
