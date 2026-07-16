@@ -191,6 +191,38 @@ def test_parse_work_explicit_null_fields():
     assert work_kw["cited_by_count"] == 0
 
 
+def test_parse_work_degenerate_fwci_nullified():
+    # OpenAlexのFWCIはコホート（分野×年×種別）の期待引用数が縮退すると爆発する
+    # （実例: W4393041245 被引用2件でFWCI 24,265・top1%扱い）。
+    # 引用数に対してあり得ない値はpercentile系フラグごと無効化する
+    rec = {"id": "https://openalex.org/W13", "title": "t",
+           "publication_date": "2024-03-01", "cited_by_count": 2,
+           "fwci": 24265.03,
+           "citation_normalized_percentile": {
+               "value": 1.0, "is_in_top_1_percent": True,
+               "is_in_top_10_percent": True},
+           "authorships": []}
+    kw, _ = parse_work(rec)
+    assert kw["fwci"] is None
+    assert kw["cnp_value"] is None
+    assert kw["is_top1pct"] is False
+    assert kw["is_top10pct"] is False
+
+
+def test_parse_work_high_but_plausible_fwci_kept():
+    # 被引用3,109件でFWCI 911（Lancet級の正当な値）は保持する
+    rec = {"id": "https://openalex.org/W14", "title": "t",
+           "publication_date": "2024-08-01", "cited_by_count": 3109,
+           "fwci": 910.7,
+           "citation_normalized_percentile": {
+               "value": 0.9999, "is_in_top_1_percent": True,
+               "is_in_top_10_percent": True},
+           "authorships": []}
+    kw, _ = parse_work(rec)
+    assert kw["fwci"] == 910.7
+    assert kw["is_top1pct"] is True
+
+
 def test_parse_work_corporate_and_domestic():
     rec = {
         "id": "https://openalex.org/W9",

@@ -61,6 +61,14 @@ def parse_work(rec: dict) -> tuple[dict, list[dict]]:
         inst.get("type") == "company"
         for a in auth_list for inst in (a.get("institutions") or []))
     cnp = rec.get("citation_normalized_percentile") or {}
+    fwci = rec.get("fwci")
+    cited_by_count = rec.get("cited_by_count") or 0
+    # OpenAlexのFWCIはコホートの期待引用数が縮退すると爆発する
+    # （実例: 被引用2件でFWCI 24,265・top1%扱い）。引用数に対して
+    # あり得ない値はpercentile系フラグごと信用しない
+    if fwci is not None and fwci > 100 * max(cited_by_count, 1):
+        fwci = None
+        cnp = {}
     topic = rec.get("primary_topic") or {}
     source = (rec.get("primary_location") or {}).get("source") or {}
     work_id = strip_id(rec["id"])
@@ -72,8 +80,8 @@ def parse_work(rec: dict) -> tuple[dict, list[dict]]:
         "publication_date": rec.get("publication_date") or "",
         "venue": source.get("display_name"),
         "type": rec.get("type"),
-        "cited_by_count": rec.get("cited_by_count") or 0,
-        "fwci": rec.get("fwci"),
+        "cited_by_count": cited_by_count,
+        "fwci": fwci,
         "cnp_value": cnp.get("value"),
         "is_top1pct": bool(cnp.get("is_in_top_1_percent", False)),
         "is_top10pct": bool(cnp.get("is_in_top_10_percent", False)),
