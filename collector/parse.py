@@ -64,14 +64,18 @@ def parse_work(rec: dict) -> tuple[dict, list[dict]]:
         "raw_json": _dumps(rec),
         "updated_at": rec.get("updated_date") or "",
     }
-    authorships = [
-        {
+    authorships = []
+    for a in auth_list:
+        author_id = strip_id((a.get("author") or {}).get("id"))
+        if not author_id:
+            continue
+        inst_ids = [strip_id(inst.get("id"))
+                    for inst in (a.get("institutions") or []) if inst.get("id")]
+        authorships.append({
             "work_id": work_id,
-            "author_id": strip_id((a.get("author") or {}).get("id")),
+            "author_id": author_id,
             "author_position": a.get("author_position"),
             "is_corresponding": bool(a.get("is_corresponding", False)),
-        }
-        for a in auth_list
-        if (a.get("author") or {}).get("id")
-    ]
+            "institution_ids": "|".join(inst_ids) if inst_ids else None,
+        })
     return work_kw, authorships

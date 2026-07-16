@@ -90,7 +90,23 @@ def test_parse_work():
     assert work_kw["is_authors_truncated"] is False
     assert len(auths) == 2
     assert auths[0] == {"work_id": "W4385564466", "author_id": "A5023888391",
-                        "author_position": "first", "is_corresponding": True}
+                        "author_position": "first", "is_corresponding": True,
+                        "institution_ids": "I4387152983"}
+
+
+def test_parse_work_authorship_institution_ids():
+    _, auths = parse_work(WORK)
+    assert auths[0]["institution_ids"] == "I4387152983"
+    assert auths[1]["institution_ids"] == "I100"
+
+
+def test_parse_work_authorship_without_institutions():
+    rec = {"id": "https://openalex.org/W2", "title": "t",
+           "publication_date": "2024-01-01",
+           "authorships": [{"author": {"id": "https://openalex.org/A1"},
+                            "countries": []}]}
+    _, auths = parse_work(rec)
+    assert auths[0]["institution_ids"] is None
 
 
 def test_parse_work_missing_fields():
