@@ -1,4 +1,32 @@
 import json
+import re
+
+# OpenAlexの機関名寄せ（解決済みID）は誤解決が多いため、OMU所属の判定は
+# 論文に書かれたraw所属文字列で行う（設計書 2026-07-16-works-backfill-design.md）。
+# "Univ."等の省略形も拾えるよう "univ" までで照合し、和文表記も対象にする。
+OMU_RAW_RE = re.compile(
+    r"osaka\s+(?:metropolitan|city|prefecture)\s+univ"
+    r"|大阪公立大学|大阪市立大学|大阪府立大学",
+    re.IGNORECASE)
+# 大阪公立大学高専は別機関なので除外
+KOSEN_RE = re.compile(r"college\s+of\s+technology|工業高等専門学校", re.IGNORECASE)
+
+
+def is_omu_raw_affiliation(raw: str) -> bool:
+    return bool(OMU_RAW_RE.search(raw)) and not KOSEN_RE.search(raw)
+
+
+def omu_raw_author_ids(rec: dict) -> set[str]:
+    """raw所属文字列がOMU系（前身含む）のauthorshipを持つ著者ID"""
+    ids: set[str] = set()
+    for a in rec.get("authorships") or []:
+        author_id = strip_id((a.get("author") or {}).get("id"))
+        if not author_id:
+            continue
+        if any(is_omu_raw_affiliation(s)
+               for s in (a.get("raw_affiliation_strings") or [])):
+            ids.add(author_id)
+    return ids
 
 
 def strip_id(url: str | None) -> str | None:
