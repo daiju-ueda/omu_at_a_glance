@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy.orm import Session
 
+from collector.backfill import backfill_authors
 from collector.config import get_kaken_appid
 from collector.dedup import apply_dedup
 from collector.kaken import KakenAuthError, KakenClient, match_members, sync_kaken
@@ -36,6 +37,12 @@ def main() -> None:
     with Session(engine) as session:
         n_a = sync_authors(session, client, today=today)
         n_w = sync_works(session, client, today=today)
+        try:
+            n_b = backfill_authors(session, client, today=today)
+            logger.info("backfill: %d authors", n_b)
+        except Exception:
+            session.rollback()
+            logger.exception("backfillに失敗（他ステージは継続）")
         try:
             n_dedup = apply_dedup(session, today=today)
             logger.info("dedup: aliases=%d", n_dedup)
